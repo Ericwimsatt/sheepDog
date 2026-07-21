@@ -27,6 +27,9 @@ node dist/cli/index.js --help
 ## Quick Start
 
 ```bash
+# Bootstrap sheepdog in a project (creates sheepdog/ dir + AGENTS.md)
+sheepdog install
+
 # Scaffold a new task interactively
 sheepdog init
 
@@ -47,6 +50,7 @@ sheepdog plan "Add user authentication with JWT"
 
 | Command | Description |
 |---------|-------------|
+| `sheepdog install` | Bootstrap sheepdog in a project (creates `sheepdog/` + `AGENTS.md`) |
 | `sheepdog init` | Scaffold a new task definition |
 | `sheepdog list` | List all available tasks |
 | `sheepdog run <task>` | Execute a task |
@@ -89,4 +93,27 @@ onPhaseFailure: stop  # "stop" or "continue"
 npm test              # Run tests
 npm run typecheck     # Type-check without emitting
 npm run build         # Compile TypeScript
+```
+
+### Using your local build in other repos
+
+```bash
+# In the sheepdog repo — link the CLI globally
+npm link
+
+# Rebuild after making changes
+npm run build
+
+# Now in any other repo, the `sheepdog` command uses your local build
+cd /path/to/other-project
+sheepdog install
+sheepdog init
+sheepdog run my-task
+```
+
+To unlink the local version and revert to the published package:
+
+```bash
+# In the sheepdog repo
+npm unlink --global sheepdog
 ```

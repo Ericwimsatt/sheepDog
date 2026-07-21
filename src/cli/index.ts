@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 import { initCommand } from './commands/init.js'
+import { installCommand } from './commands/install.js'
 import { runCommand } from './commands/run.js'
 import { statusCommand } from './commands/status.js'
 import { listCommand } from './commands/list.js'
@@ -20,6 +21,17 @@ program
   .option('--task-name <name>', 'Task name', 'my-task')
   .action((options) => {
     initCommand(options).catch(err => {
+      console.error(err.message)
+      process.exit(1)
+    })
+  })
+
+program
+  .command('install')
+  .description('Bootstrap sheepdog in a project (creates sheepdog/ dir + AGENTS.md)')
+  .option('--dir <path>', 'Project directory', process.cwd())
+  .action((options) => {
+    installCommand(options).catch(err => {
       console.error(err.message)
       process.exit(1)
     })

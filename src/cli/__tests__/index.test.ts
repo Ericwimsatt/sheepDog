@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
 
 describe('CLI index', () => {
-  it('all 5 commands are registered', async () => {
+  it('all 6 commands are registered', async () => {
     const { program } = await import('../index.js')
 
     const commands = program.commands.map((c: any) => c.name())
     expect(commands).toContain('init')
+    expect(commands).toContain('install')
     expect(commands).toContain('run')
     expect(commands).toContain('status')
     expect(commands).toContain('list')
@@ -16,6 +17,7 @@ describe('CLI index', () => {
     const { program } = await import('../index.js')
     const helpText = program.helpInformation()
     expect(helpText).toContain('init')
+    expect(helpText).toContain('install')
     expect(helpText).toContain('run')
     expect(helpText).toContain('status')
     expect(helpText).toContain('list')

@@ -1,0 +1,22 @@
+name: valid-task
+phases:
+  - id: p1
+    file: todo-phase-1.md
+    label: Phase 1
+  - id: p2
+    file: todo-phase-2.md
+    label: Phase 2
+  - id: p3
+    file: todo-phase-3.md
+    label: Phase 3
+  - id: p4
+    file: todo-phase-4.md
+    label: Phase 4
+runBetween:
+  - command: echo "between check"
+    optional: false
+    failOnError: false
+runAfterAll:
+  - command: echo "final check"
+    optional: false
+    failOnError: false

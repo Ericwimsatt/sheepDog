@@ -23,9 +23,7 @@ function writeTaskYaml(taskDir: string, content: string): void {
 const validYaml = `
 name: test-task
 phases:
-  - id: p1
-    file: phase1.md
-    label: Phase 1
+  - description: "Phase 1"
 `
 
 describe('loadTask', () => {
@@ -34,8 +32,33 @@ describe('loadTask', () => {
     const loaded = loadTask(tmpDir)
     expect(loaded.task.name).toBe('test-task')
     expect(loaded.task.phases).toHaveLength(1)
-    expect(loaded.task.phases[0].id).toBe('p1')
+    expect(loaded.task.phases[0].id).toBe('phase-1')
+    expect(loaded.task.phases[0].file).toBe('todo-phase-1.md')
+    expect(loaded.task.phases[0].label).toBe('Phase 1')
     expect(loaded.taskDir).toBe(tmpDir)
+  })
+
+  it('resolves phases with auto-generated id/file/label', () => {
+    const yaml = `
+name: multi-phase
+phases:
+  - description: "First Phase"
+    runAfter:
+      - npm test
+  - description: "Second Phase"
+`
+    writeTaskYaml(tmpDir, yaml)
+    const loaded = loadTask(tmpDir)
+    expect(loaded.task.phases).toHaveLength(2)
+    expect(loaded.task.phases[0].id).toBe('phase-1')
+    expect(loaded.task.phases[0].file).toBe('todo-phase-1.md')
+    expect(loaded.task.phases[0].label).toBe('First Phase')
+    expect(loaded.task.phases[0].runAfter).toHaveLength(1)
+    expect(loaded.task.phases[0].runAfter[0].command).toBe('npm test')
+    expect(loaded.task.phases[1].id).toBe('phase-2')
+    expect(loaded.task.phases[1].file).toBe('todo-phase-2.md')
+    expect(loaded.task.phases[1].label).toBe('Second Phase')
+    expect(loaded.task.phases[1].runAfter).toEqual([])
   })
 
   it('throws on missing file', () => {
@@ -78,7 +101,7 @@ describe('path helpers', () => {
   const taskDir = '/some/task/dir'
 
   it('phaseFilePath returns correct path', () => {
-    expect(phaseFilePath(taskDir, { file: 'phase1.md' })).toBe(join(taskDir, 'phase1.md'))
+    expect(phaseFilePath(taskDir, { id: 'phase-1', file: 'todo-phase-1.md', label: 'P1', runAfter: [] })).toBe(join(taskDir, 'todo-phase-1.md'))
   })
 
   it('contextFilePath returns correct path', () => {

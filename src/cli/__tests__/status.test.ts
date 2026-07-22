@@ -13,7 +13,7 @@ describe('statusCommand', () => {
 
     let yaml = `name: "${name}"\nphases:\n`
     for (let i = 1; i <= phaseCount; i++) {
-      yaml += `  - id: phase-${i}\n    file: todo-phase-${i}.md\n    label: "Phase ${i}"\n`
+      yaml += `  - description: "Phase ${i}"\n`
     }
     writeFileSync(join(taskDir, 'task.yaml'), yaml, 'utf-8')
     return taskDir

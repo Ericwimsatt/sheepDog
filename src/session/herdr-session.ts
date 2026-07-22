@@ -92,6 +92,12 @@ export class HerdrSessionManager {
 }
 
 function extractPaneId(stdout: string, stderr: string): string {
+  try {
+    const parsed = JSON.parse(stdout)
+    const paneId = parsed?.result?.agent?.pane_id
+    if (paneId) return paneId
+  } catch {}
+
   const combined = stdout + stderr
   const match = combined.match(/pane[_\s]?(\w+)/i)
   if (match) return match[1]

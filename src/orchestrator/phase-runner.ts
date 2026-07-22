@@ -1,7 +1,7 @@
 import { writeFileSync, unlinkSync, existsSync } from 'node:fs'
 import { HerdrSessionManager } from '../session/herdr-session.js'
 import { buildPhaseContext } from './context-builder.js'
-import { doneMarkerPath, activePhasePath } from '../task/task-loader.js'
+import { doneMarkerPath, activePhasePath, contextFilePath } from '../task/task-loader.js'
 import type { Phase, TestResult, PhaseState } from '../types/types.js'
 import { info, success, step } from '../utils/logger.js'
 
@@ -31,7 +31,12 @@ export class PhaseRunner {
 
     info(`Launching phase: ${phase.label}`)
     const agentName = `${phase.id}`
-    const agentInfo = await herdr.startAgent(agentName, projectRoot, ['opencode'], {
+    const contextPath = contextFilePath(taskDir, phase.id)
+    const agentInfo = await herdr.startAgent(agentName, projectRoot, [
+      'opencode',
+      '--prompt', `Phase "${phase.label}" has started. Read the instructions in ${contextPath} and follow them. When you have completed all the work, call the \`sheepdog_done\` tool to signal phase completion.`,
+      '--auto',
+    ], {
       split: 'right',
     })
     success(`Phase started in pane: ${agentInfo.paneId}`)
@@ -45,6 +50,14 @@ export class PhaseRunner {
       output = await herdr.readPaneOutput(agentInfo.paneId, 'recent')
     } catch {
       step('Could not read pane output (pane may have been closed)')
+    }
+
+    step('Closing pane...')
+    try {
+      await herdr.closePane(agentInfo.paneId)
+      success(`Pane ${agentInfo.paneId} closed`)
+    } catch {
+      step('Could not close pane')
     }
 
     const completedAt = new Date().toISOString()

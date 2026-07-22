@@ -32,10 +32,10 @@ describe('initCommand', () => {
 
     const yaml = readFileSync(join(tmpDir, 'sheepdog', 'test-task', 'task.yaml'), 'utf-8')
     expect(yaml).toContain('name: "test-task"')
-    expect(yaml).toContain('phase-1')
-    expect(yaml).toContain('phase-2')
-    expect(yaml).toContain('phase-3')
-    expect(yaml).toContain('phase-4')
+    expect(yaml).toContain('Phase 1')
+    expect(yaml).toContain('Phase 2')
+    expect(yaml).toContain('Phase 3')
+    expect(yaml).toContain('Phase 4')
   })
 
   it('creates todo-phase-*.md files with content', async () => {

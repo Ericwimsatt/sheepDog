@@ -15,7 +15,7 @@ afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true })
 })
 
-const phase: Phase = { id: 'p1', file: 'todo-p1.md', label: 'Phase 1' }
+const phase: Phase = { id: 'p1', file: 'todo-p1.md', label: 'Phase 1', runAfter: [] }
 
 describe('buildPhaseContext', () => {
   it('builds context with todo content', () => {

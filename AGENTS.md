@@ -1,10 +1,10 @@
 # Instructions for Coding Agents: Creating a SheepDog Task
 
-Use these instructions when asked to create a sheepdog task in a repository that has never used sheepdog before.
+Use these instructions when asked to create a sheepdog task 
 
 ## Overview
 
-SheepDog is a multi-phase task orchestrator for herdr + opencode. You define a task as a set of sequential phases, each with instructions for an AI coding agent and optional test gates between them.
+SheepDog is a multi-phase task orchestrator. You define a task as a set of sequential phases, each with instructions for an AI coding agent and optional test gates between them.
 
 ## Step-by-Step Instructions
 

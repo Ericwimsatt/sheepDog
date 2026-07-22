@@ -9,7 +9,7 @@ describe('listCommand', () => {
   function writeTask(name: string): void {
     const taskDir = join(tmpDir, 'sheepdog', name)
     mkdirSync(taskDir, { recursive: true })
-    writeFileSync(join(taskDir, 'task.yaml'), `name: "${name}"\nphases:\n  - id: p1\n    file: todo.md\n    label: Phase 1\n`, 'utf-8')
+    writeFileSync(join(taskDir, 'task.yaml'), `name: "${name}"\nphases:\n  - description: "Phase 1"\n`, 'utf-8')
   }
 
   function writeInvalidTask(name: string): void {

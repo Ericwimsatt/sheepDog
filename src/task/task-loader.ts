@@ -1,16 +1,40 @@
 import { readFileSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import { TaskSchema, type ParsedTask } from './task-schema.js'
+import { TaskYamlSchema, type ParsedTaskYaml } from './task-schema.js'
 import { glob } from '../utils/fs.js'
 import { SheepDogError } from '../utils/errors.js'
+import type { Task, Phase, TestCommand } from '../types/types.js'
 
 const SHEEPDOG_DIR = 'sheepdog'
 
 export interface LoadedTask {
-  task: ParsedTask
+  task: Task
   taskDir: string
   projectRoot: string
+}
+
+function toTestCommands(commands: string[]): TestCommand[] {
+  return commands.map(cmd => ({ command: cmd }))
+}
+
+function resolvePhases(yaml: ParsedTaskYaml): Phase[] {
+  return yaml.phases.map((p, i) => ({
+    id: `phase-${i + 1}`,
+    file: `todo-phase-${i + 1}.md`,
+    label: p.description,
+    runAfter: toTestCommands(p.runAfter ?? []),
+  }))
+}
+
+function resolveTask(yaml: ParsedTaskYaml): Task {
+  return {
+    name: yaml.name,
+    phases: resolvePhases(yaml),
+    runBeforeAll: toTestCommands(yaml.runBeforeAll ?? []),
+    runAfterAll: toTestCommands(yaml.runAfterAll ?? []),
+    onPhaseFailure: yaml.onPhaseFailure ?? 'stop',
+  }
 }
 
 export function discoverTasks(projectRoot: string): string[] {
@@ -34,15 +58,15 @@ export function loadTask(taskDir: string): LoadedTask {
     throw new SheepDogError(`Invalid YAML in task.yaml: ${msg}`)
   }
 
-  const result = TaskSchema.safeParse(parsed)
+  const result = TaskYamlSchema.safeParse(parsed)
   if (!result.success) {
     throw new SheepDogError(`Invalid task.yaml: ${result.error.message}`)
   }
 
   return {
-    task: result.data,
+    task: resolveTask(result.data),
     taskDir,
-    projectRoot: dirname(taskDir),
+    projectRoot: resolve(taskDir, '..', '..'),
   }
 }
 
@@ -51,7 +75,7 @@ export function loadTaskByName(projectRoot: string, name: string): LoadedTask {
   return loadTask(taskDir)
 }
 
-export function phaseFilePath(taskDir: string, phase: { file: string }): string {
+export function phaseFilePath(taskDir: string, phase: Phase): string {
   return join(taskDir, phase.file)
 }
 

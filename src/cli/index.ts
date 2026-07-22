@@ -28,7 +28,7 @@ program
 
 program
   .command('install')
-  .description('Bootstrap sheepdog in a project (creates sheepdog/ dir + AGENTS.md)')
+  .description('Bootstrap sheepdog in a project (creates sheepdog/ dir + sheepdog/AGENTS.md)')
   .option('--dir <path>', 'Project directory', process.cwd())
   .action((options) => {
     installCommand(options).catch(err => {

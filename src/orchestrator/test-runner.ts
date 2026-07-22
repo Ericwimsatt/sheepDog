@@ -1,9 +1,6 @@
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { spawn } from 'node:child_process'
 import type { TestCommand, TestResult } from '../types/types.js'
 import { step, warn, error } from '../utils/logger.js'
-
-const execFileAsync = promisify(execFile)
 
 export interface TestRunnerOptions {
   cwd: string
@@ -43,28 +40,33 @@ export class TestRunner {
     const cmd = parts[0]
     const args = parts.slice(1)
 
-    try {
-      const { stdout, stderr } = await execFileAsync(cmd, args, {
+    return new Promise(resolve => {
+      const child = spawn(cmd, args, {
         cwd: this.options.cwd,
         env: { ...process.env, ...this.options.env },
+        stdio: 'inherit',
         timeout: 300_000,
       })
 
-      return {
-        command,
-        exitCode: 0,
-        stdout: stdout.trim(),
-        stderr: stderr.trim(),
-        passed: true,
-      }
-    } catch (err: any) {
-      return {
-        command,
-        exitCode: err.code ?? 1,
-        stdout: err.stdout?.trim() ?? '',
-        stderr: err.stderr?.trim() ?? err.message ?? '',
-        passed: false,
-      }
-    }
+      child.on('error', err => {
+        resolve({
+          command,
+          exitCode: 1,
+          stdout: '',
+          stderr: err.message,
+          passed: false,
+        })
+      })
+
+      child.on('exit', code => {
+        resolve({
+          command,
+          exitCode: code ?? 1,
+          stdout: '',
+          stderr: '',
+          passed: code === 0,
+        })
+      })
+    })
   }
 }

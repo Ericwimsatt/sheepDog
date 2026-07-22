@@ -33,6 +33,19 @@ export class Orchestrator {
       startedAt: new Date().toISOString(),
     }
 
+    if (task.runBeforeAll && task.runBeforeAll.length > 0) {
+      info('Running before-all commands...')
+      const beforeResults = await this.testRunner.run(task.runBeforeAll)
+      const failures = beforeResults.filter(r => !r.passed)
+      if (failures.length > 0) {
+        error('runBeforeAll commands failed. Aborting.')
+        taskState.status = 'failed'
+        taskState.completedAt = new Date().toISOString()
+        return taskState
+      }
+      success('All before-all commands passed')
+    }
+
     const startIndex = options?.fromPhase
       ? task.phases.findIndex(p => p.id === options.fromPhase)
       : 0
@@ -63,18 +76,18 @@ export class Orchestrator {
       taskState.phases.push(phaseState)
       success(`Phase complete: ${phase.label}`)
 
-      if (task.runBetween && task.runBetween.length > 0) {
-        info('Running between-phase tests...')
-        const testResults = await this.testRunner.run(task.runBetween)
+      if (phase.runAfter && phase.runAfter.length > 0) {
+        info('Running phase after-commands...')
+        const testResults = await this.testRunner.run(phase.runAfter)
         phaseState.testResults = testResults
 
         const hardFailures = testResults.filter(
-          r => !r.passed && !task.runBetween.find(tc => tc.command === r.command)?.optional
+          r => !r.passed && !phase.runAfter.find(tc => tc.command === r.command)?.optional
         )
 
         if (hardFailures.length > 0) {
-          if (task.onTestFailure?.action === 'stop') {
-            error('Tests failed and onTestFailure is set to stop. Aborting.')
+          if (task.onPhaseFailure === 'stop') {
+            error('Tests failed and onPhaseFailure is set to stop. Aborting.')
             taskState.status = 'failed'
             taskState.completedAt = new Date().toISOString()
             return taskState

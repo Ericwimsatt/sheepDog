@@ -64,48 +64,71 @@ function writeValidTask(overrides: string = ''): void {
   const yaml = `
 name: test-task
 phases:
-  - id: p1
-    file: todo-p1.md
-    label: Phase 1
-  - id: p2
-    file: todo-p2.md
-    label: Phase 2
+  - description: "Phase 1"
+  - description: "Phase 2"
 ${overrides}
 `
   writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
-  writeFileSync(join(tmpDir, 'todo-p1.md'), 'Phase 1 content\n', 'utf-8')
-  writeFileSync(join(tmpDir, 'todo-p2.md'), 'Phase 2 content\n', 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1 content\n', 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2 content\n', 'utf-8')
 }
 
-function writeTaskWithBetweenTests(): void {
-  writeValidTask(`
-runBetween:
-  - command: echo "check"
-    optional: false
-    failOnError: false
-`)
+function writeTaskWithRunAfter(): void {
+  const yaml = `
+name: test-task
+phases:
+  - description: "Phase 1"
+    runAfter:
+      - echo "check"
+  - description: "Phase 2"
+`
+  writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1 content\n', 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2 content\n', 'utf-8')
+}
+
+function writeTaskWithRunBeforeAll(): void {
+  const yaml = `
+name: test-task
+phases:
+  - description: "Phase 1"
+  - description: "Phase 2"
+runBeforeAll:
+  - echo "setup"
+`
+  writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1 content\n', 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2 content\n', 'utf-8')
 }
 
 function writeTaskWithAfterAll(): void {
-  writeValidTask(`
+  const yaml = `
+name: test-task
+phases:
+  - description: "Phase 1"
+  - description: "Phase 2"
 runAfterAll:
-  - command: echo "final"
-    optional: false
-    failOnError: false
-`)
+  - echo "final"
+`
+  writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1 content\n', 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2 content\n', 'utf-8')
 }
 
 function writeTaskWithEverything(): void {
-  writeValidTask(`
-runBetween:
-  - command: echo "check"
-    optional: false
-    failOnError: false
+  const yaml = `
+name: test-task
+phases:
+  - description: "Phase 1"
+    runAfter:
+      - echo "check"
+  - description: "Phase 2"
 runAfterAll:
-  - command: echo "final"
-    optional: false
-    failOnError: false
-`)
+  - echo "final"
+`
+  writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1 content\n', 'utf-8')
+  writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2 content\n', 'utf-8')
 }
 
 async function runOrchestrator(): Promise<ReturnType<Orchestrator['runTask']>> {
@@ -124,12 +147,12 @@ describe('Orchestrator', () => {
 
     expect(result.status).toBe('completed')
     expect(result.phases).toHaveLength(2)
-    expect(result.phases[0].phaseId).toBe('p1')
-    expect(result.phases[1].phaseId).toBe('p2')
+    expect(result.phases[0].phaseId).toBe('phase-1')
+    expect(result.phases[1].phaseId).toBe('phase-2')
     expect(mockHerdrStart).toHaveBeenCalledTimes(2)
   })
 
-  it('runs between-phase tests', async () => {
+  it('runs phase runAfter commands', async () => {
     writeTaskWithEverything()
     scheduleDoneMarker()
     mockHerdrReadOutput.mockResolvedValue('output')
@@ -147,22 +170,15 @@ describe('Orchestrator', () => {
     const yaml = `
 name: test-task
 phases:
-  - id: p1
-    file: todo-p1.md
-    label: Phase 1
-  - id: p2
-    file: todo-p2.md
-    label: Phase 2
-runBetween:
-  - command: echo "check"
-    optional: false
-    failOnError: false
-onTestFailure:
-  action: append_to_next_phase
+  - description: "Phase 1"
+    runAfter:
+      - echo "check"
+  - description: "Phase 2"
+onPhaseFailure: continue
 `
     writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
-    writeFileSync(join(tmpDir, 'todo-p1.md'), 'Phase 1 content\n', 'utf-8')
-    writeFileSync(join(tmpDir, 'todo-p2.md'), 'Phase 2 content\n', 'utf-8')
+    writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1 content\n', 'utf-8')
+    writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2 content\n', 'utf-8')
 
     scheduleDoneMarker()
     mockHerdrReadOutput.mockResolvedValue('output')
@@ -180,15 +196,26 @@ onTestFailure:
     expect(result.phases).toHaveLength(2)
     expect(result.phases[0].testResults[0].passed).toBe(false)
 
-    const p2Context = join(tmpDir, '.phase-context-p2.md')
+    const p2Context = join(tmpDir, '.phase-context-phase-2.md')
     const content = readFileSync(p2Context, 'utf-8')
     expect(content).toContain('## Previous Phase Test Failures')
   })
 
-  it('stops on onTestFailure: stop', async () => {
-    writeTaskWithBetweenTests()
-    const orchestrator = new Orchestrator()
+  it('stops on onPhaseFailure: stop', async () => {
+    const yaml = `
+name: test-task
+phases:
+  - description: "Phase 1"
+    runAfter:
+      - echo "check"
+  - description: "Phase 2"
+onPhaseFailure: stop
+`
+    writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+    writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1 content\n', 'utf-8')
+    writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2 content\n', 'utf-8')
 
+    const orchestrator = new Orchestrator()
     scheduleDoneMarker()
     mockHerdrReadOutput.mockResolvedValue('output')
 
@@ -199,25 +226,6 @@ onTestFailure:
       throw err
     })
 
-    // Override task.yaml with stop action
-    const yaml = `
-name: test-task
-phases:
-  - id: p1
-    file: todo-p1.md
-    label: Phase 1
-  - id: p2
-    file: todo-p2.md
-    label: Phase 2
-runBetween:
-  - command: echo "check"
-    optional: false
-    failOnError: false
-onTestFailure:
-  action: stop
-`
-    writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
-
     const result = await orchestrator.runTask(tmpDir)
 
     expect(result.status).toBe('failed')
@@ -227,6 +235,18 @@ onTestFailure:
 
   it('runs after-all tests', async () => {
     writeTaskWithAfterAll()
+    scheduleDoneMarker()
+    mockHerdrReadOutput.mockResolvedValue('output')
+    mockExecImpl.mockReturnValue({ stdout: 'ok', stderr: '' })
+
+    const result = await runOrchestrator()
+
+    expect(result.status).toBe('completed')
+    expect(mockExecImpl).toHaveBeenCalled()
+  })
+
+  it('runs before-all commands', async () => {
+    writeTaskWithRunBeforeAll()
     scheduleDoneMarker()
     mockHerdrReadOutput.mockResolvedValue('output')
     mockExecImpl.mockReturnValue({ stdout: 'ok', stderr: '' })
@@ -249,8 +269,8 @@ onTestFailure:
       taskName: 'test-task',
       status: 'completed',
       phases: [
-        { phaseId: 'p1', status: 'completed' },
-        { phaseId: 'p2', status: 'completed' },
+        { phaseId: 'phase-1', status: 'completed' },
+        { phaseId: 'phase-2', status: 'completed' },
       ],
     })
     expect(result.startedAt).toBeDefined()

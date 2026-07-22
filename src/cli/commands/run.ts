@@ -16,7 +16,7 @@ export async function runCommand(taskName: string, options: RunCliOptions): Prom
   try {
     loadTaskByName(projectRoot, taskName)
   } catch (e: any) {
-    error(`Task '${taskName}' not found in ${projectRoot}`)
+    error(`Task '${taskName}' not found in ${projectRoot}: ${e.message}`)
     info('Available tasks:')
     const tasks = discoverTasks(projectRoot)
     for (const t of tasks) {

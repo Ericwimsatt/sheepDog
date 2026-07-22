@@ -26,7 +26,7 @@ afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true })
 })
 
-const phase: Phase = { id: 'p1', file: 'todo-p1.md', label: 'Phase 1' }
+const phase: Phase = { id: 'p1', file: 'todo-p1.md', label: 'Phase 1', runAfter: [] }
 
 function writeTodoFile(): void {
   writeFileSync(join(tmpDir, 'todo-p1.md'), 'Do the work\n', 'utf-8')

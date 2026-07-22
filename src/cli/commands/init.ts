@@ -26,29 +26,24 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
   const taskYaml = `name: "${taskName}"
 phases:
-  - id: phase-1
-    file: todo-phase-1.md
-    label: "Phase 1: Planning"
-  - id: phase-2
-    file: todo-phase-2.md
-    label: "Phase 2: Implementation"
-  - id: phase-3
-    file: todo-phase-3.md
-    label: "Phase 3: Testing & Refinement"
-  - id: phase-4
-    file: todo-phase-4.md
-    label: "Phase 4: Polish & Documentation"
-run_between:
-  - command: npm run typecheck
-  - command: npm run lint
-    optional: true
-  - command: npm test
-    fail_on_error: true
-run_after_all:
-  - command: npm run typecheck
-  - command: npm test
-on_test_failure:
-  action: append_to_next_phase
+  - description: "Phase 1: Planning"
+  - description: "Phase 2: Implementation"
+    runAfter:
+      - npm run typecheck
+      - npm run lint
+  - description: "Phase 3: Testing & Refinement"
+    runAfter:
+      - npm test
+  - description: "Phase 4: Polish & Documentation"
+    runAfter:
+      - npm run typecheck
+      - npm test
+runBeforeAll:
+  - npm install
+runAfterAll:
+  - npm run typecheck
+  - npm test
+onPhaseFailure: stop
 `
 
   writeFileSync(join(taskDir, 'task.yaml'), taskYaml, 'utf-8')

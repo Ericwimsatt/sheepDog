@@ -21,22 +21,24 @@ describe('installCommand', () => {
     expect(existsSync(join(tmpDir, 'sheepdog'))).toBe(true)
   })
 
-  it('creates AGENTS.md', async () => {
+  it('creates AGENTS.md inside sheepdog/', async () => {
     await installCommand({ dir: tmpDir })
 
-    const agentsPath = join(tmpDir, 'AGENTS.md')
+    const agentsPath = join(tmpDir, 'sheepdog', 'AGENTS.md')
     expect(existsSync(agentsPath)).toBe(true)
     const content = readFileSync(agentsPath, 'utf-8')
     expect(content).toContain('Creating a SheepDog Task')
     expect(content).toContain('task.yaml')
   })
 
-  it('does not overwrite existing AGENTS.md', async () => {
-    writeFileSync(join(tmpDir, 'AGENTS.md'), 'custom content', 'utf-8')
+  it('does not overwrite existing sheepdog/AGENTS.md', async () => {
+    const sheepdogDir = join(tmpDir, 'sheepdog')
+    mkdirSync(sheepdogDir, { recursive: true })
+    writeFileSync(join(sheepdogDir, 'AGENTS.md'), 'custom content', 'utf-8')
 
     await installCommand({ dir: tmpDir })
 
-    const content = readFileSync(join(tmpDir, 'AGENTS.md'), 'utf-8')
+    const content = readFileSync(join(sheepdogDir, 'AGENTS.md'), 'utf-8')
     expect(content).toBe('custom content')
   })
 

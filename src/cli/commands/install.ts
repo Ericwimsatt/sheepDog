@@ -138,12 +138,12 @@ export async function installCommand(options: InstallOptions): Promise<void> {
   mkdirSync(sheepdogDir, { recursive: true })
   step(`Created ${sheepdogDir}/`)
 
-  const agentsMdPath = join(projectRoot, 'AGENTS.md')
+  const agentsMdPath = join(sheepdogDir, 'AGENTS.md')
   if (existsSync(agentsMdPath)) {
     warn(`AGENTS.md already exists at ${agentsMdPath}, skipping`)
   } else {
     writeFileSync(agentsMdPath, AGENTS_MD_CONTENT, 'utf-8')
-    step(`Created AGENTS.md`)
+    step(`Created ${agentsMdPath}`)
   }
 
   success('Sheepdog installed.')

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, existsSync, rmSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 const mockExecFile = vi.fn()
 vi.mock('node:child_process', () => ({
@@ -44,7 +45,7 @@ describe('planCommand', () => {
     const { planCommand } = await import('../commands/plan.js')
     await planCommand('Add dark mode', { dir: tmpDir })
 
-    const taskDir = join(tmpDir, 'sheepdog', 'add-dark-mode')
+    const taskDir = join(tmpDir, SHEEPDOG_DIR, 'add-dark-mode')
     expect(existsSync(taskDir)).toBe(true)
   })
 
@@ -75,7 +76,7 @@ describe('planCommand', () => {
     const { planCommand } = await import('../commands/plan.js')
     await planCommand('  FIX!! the @#$% BUGS  ', { dir: tmpDir })
 
-    const entries = readdirSync(join(tmpDir, 'sheepdog'))
+    const entries = readdirSync(join(tmpDir, SHEEPDOG_DIR))
     expect(entries[0]).toMatch(/^fix-the-bugs$/)
   })
 })

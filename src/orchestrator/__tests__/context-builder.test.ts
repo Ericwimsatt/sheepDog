@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdirSync, writeFileSync, rmSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, mkdtempSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { buildPhaseContext } from '../context-builder.js'
+import { buildPhaseContext, buildFixContext } from '../context-builder.js'
 import type { Phase, TestResult } from '../../types/types.js'
 
 let tmpDir: string
@@ -86,5 +86,58 @@ describe('buildPhaseContext', () => {
     const result = buildPhaseContext({ taskDir: tmpDir, phase })
 
     expect(result).toBe(join(tmpDir, '.phase-context-p1.md'))
+  })
+})
+
+describe('buildFixContext', () => {
+  it('writes context file with failure details', () => {
+    const failures: TestResult[] = [
+      { command: 'npm test', exitCode: 1, stdout: '', stderr: 'Test failed', passed: false },
+    ]
+
+    const result = buildFixContext({ taskDir: tmpDir, phase, testResults: failures, attempt: 1, maxAttempts: 2 })
+
+    const expectedPath = join(tmpDir, '.phase-fix-context-p1-attempt-1.md')
+    expect(result).toBe(expectedPath)
+    expect(existsSync(expectedPath)).toBe(true)
+
+    const content = readFileSync(expectedPath, 'utf-8')
+    expect(content).toContain('# Fix Attempt 1/2: Phase 1')
+    expect(content).toContain('npm test')
+    expect(content).toContain('Test failed')
+    expect(content).toContain('sheepdog_done')
+  })
+
+  it('includes final attempt warning on last attempt', () => {
+    const failures: TestResult[] = [
+      { command: 'npm test', exitCode: 1, stdout: '', stderr: '', passed: false },
+    ]
+
+    buildFixContext({ taskDir: tmpDir, phase, testResults: failures, attempt: 2, maxAttempts: 2 })
+
+    const content = readFileSync(join(tmpDir, '.phase-fix-context-p1-attempt-2.md'), 'utf-8')
+    expect(content).toContain('final attempt')
+  })
+
+  it('includes retry note when attempt > 1', () => {
+    const failures: TestResult[] = [
+      { command: 'npm test', exitCode: 1, stdout: '', stderr: '', passed: false },
+    ]
+
+    buildFixContext({ taskDir: tmpDir, phase, testResults: failures, attempt: 2, maxAttempts: 3 })
+
+    const content = readFileSync(join(tmpDir, '.phase-fix-context-p1-attempt-2.md'), 'utf-8')
+    expect(content).toContain('did not resolve')
+  })
+
+  it('omits retry note on first attempt', () => {
+    const failures: TestResult[] = [
+      { command: 'npm test', exitCode: 1, stdout: '', stderr: '', passed: false },
+    ]
+
+    buildFixContext({ taskDir: tmpDir, phase, testResults: failures, attempt: 1, maxAttempts: 2 })
+
+    const content = readFileSync(join(tmpDir, '.phase-fix-context-p1-attempt-1.md'), 'utf-8')
+    expect(content).not.toContain('did not resolve')
   })
 })

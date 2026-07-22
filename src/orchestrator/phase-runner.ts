@@ -1,9 +1,9 @@
 import { writeFileSync, unlinkSync, existsSync } from 'node:fs'
 import { HerdrSessionManager } from '../session/herdr-session.js'
-import { buildPhaseContext } from './context-builder.js'
-import { doneMarkerPath, activePhasePath, contextFilePath } from '../task/task-loader.js'
+import { buildPhaseContext, buildFixContext } from './context-builder.js'
+import { doneMarkerPath, activePhasePath, contextFilePath, fixContextFilePath } from '../task/task-loader.js'
 import type { Phase, TestResult, PhaseState } from '../types/types.js'
-import { info, success, step } from '../utils/logger.js'
+import { info, success, warn, step } from '../utils/logger.js'
 
 export interface PhaseRunnerOptions {
   taskDir: string
@@ -71,7 +71,60 @@ export class PhaseRunner {
     }
   }
 
-  private async waitForDoneMarker(taskDir: string, pollMs: number = 500, timeoutMs: number = 0): Promise<void> {
+  async runFixAttempt(options: {
+    taskDir: string
+    projectRoot: string
+    herdr: HerdrSessionManager
+    phase: Phase
+    testResults: TestResult[]
+    attempt: number
+    maxAttempts: number
+  }): Promise<void> {
+    const { taskDir, projectRoot, herdr, phase, testResults, attempt, maxAttempts } = options
+
+    info(`Preparing fix context attempt ${attempt}/${maxAttempts} for phase: ${phase.label}`)
+    buildFixContext({ taskDir, phase, testResults, attempt, maxAttempts })
+
+    writeFileSync(activePhasePath(taskDir), `${phase.id}-fix-${attempt}`, 'utf-8')
+
+    const donePath = doneMarkerPath(taskDir)
+    if (existsSync(donePath)) {
+      unlinkSync(donePath)
+    }
+
+    const agentName = `Sheepdog fix (${phase.id}, attempt ${attempt})`
+    const contextPath = fixContextFilePath(taskDir, phase.id, attempt)
+    info(`Launching fix agent (${attempt}/${maxAttempts}) for phase: ${phase.label}`)
+    const agentInfo = await herdr.startAgent(agentName, projectRoot, [
+      'opencode',
+      '--prompt', `Fix attempt ${attempt}/${maxAttempts} for phase "${phase.label}". Read the failing test details in ${contextPath} and fix the code. When done, call the \`sheepdog_done\` tool.`,
+      '--auto',
+    ], {
+      split: 'right',
+    })
+    success(`Fix agent started in pane: ${agentInfo.paneId}`)
+
+    step('Waiting for fix agent to complete...')
+    await this.waitForDoneMarker(taskDir)
+
+    step('Reading fix agent output...')
+    let output = ''
+    try {
+      output = await herdr.readPaneOutput(agentInfo.paneId, 'recent')
+    } catch {
+      step('Could not read pane output (pane may have been closed)')
+    }
+
+    step('Closing fix agent pane...')
+    try {
+      await herdr.closePane(agentInfo.paneId)
+      success(`Fix agent pane ${agentInfo.paneId} closed`)
+    } catch {
+      step('Could not close pane')
+    }
+  }
+
+  async waitForDoneMarker(taskDir: string, pollMs: number = 500, timeoutMs: number = 0): Promise<void> {
     const donePath = doneMarkerPath(taskDir)
     const startTime = Date.now()
 

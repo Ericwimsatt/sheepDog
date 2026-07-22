@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { glob } from '../fs.js'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 let tmpDir: string
 
@@ -15,16 +16,16 @@ afterEach(() => {
 })
 
 describe('glob', () => {
-  it('matches sheepdog/*/task.yaml patterns', () => {
-    mkdirSync(join(tmpDir, 'sheepdog', 'task-a'), { recursive: true })
-    mkdirSync(join(tmpDir, 'sheepdog', 'task-b'), { recursive: true })
-    writeFileSync(join(tmpDir, 'sheepdog', 'task-a', 'task.yaml'), 'name: a')
-    writeFileSync(join(tmpDir, 'sheepdog', 'task-b', 'task.yaml'), 'name: b')
+  it(`matches ${SHEEPDOG_DIR}/*/task.yaml patterns`, () => {
+    mkdirSync(join(tmpDir, SHEEPDOG_DIR, 'task-a'), { recursive: true })
+    mkdirSync(join(tmpDir, SHEEPDOG_DIR, 'task-b'), { recursive: true })
+    writeFileSync(join(tmpDir, SHEEPDOG_DIR, 'task-a', 'task.yaml'), 'name: a')
+    writeFileSync(join(tmpDir, SHEEPDOG_DIR, 'task-b', 'task.yaml'), 'name: b')
 
-    const results = glob('sheepdog/*/task.yaml', tmpDir)
+    const results = glob(`${SHEEPDOG_DIR}/*/task.yaml`, tmpDir)
     expect(results).toHaveLength(2)
-    expect(results).toContain(join(tmpDir, 'sheepdog', 'task-a', 'task.yaml'))
-    expect(results).toContain(join(tmpDir, 'sheepdog', 'task-b', 'task.yaml'))
+    expect(results).toContain(join(tmpDir, SHEEPDOG_DIR, 'task-a', 'task.yaml'))
+    expect(results).toContain(join(tmpDir, SHEEPDOG_DIR, 'task-b', 'task.yaml'))
   })
 
   it('matches ** patterns recursively', () => {
@@ -38,7 +39,7 @@ describe('glob', () => {
   })
 
   it('returns empty array when no matches', () => {
-    const results = glob('sheepdog/*/task.yaml', tmpDir)
+    const results = glob(`${SHEEPDOG_DIR}/*/task.yaml`, tmpDir)
     expect(results).toEqual([])
   })
 })

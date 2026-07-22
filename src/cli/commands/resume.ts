@@ -3,6 +3,7 @@ import { Orchestrator } from '../../orchestrator/index.js'
 import { loadTaskByName, discoverTasks } from '../../task/task-loader.js'
 import { loadCheckpoint } from '../../checkpoint/checkpoint.js'
 import { info, warn, error } from '../../utils/logger.js'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 export interface ResumeCliOptions {
   dir?: string
@@ -10,7 +11,7 @@ export interface ResumeCliOptions {
 
 export async function resumeCommand(taskName: string, options: ResumeCliOptions): Promise<void> {
   const projectRoot = resolve(options.dir ?? process.cwd())
-  const taskDir = resolve(projectRoot, 'sheepdog', taskName)
+  const taskDir = resolve(projectRoot, SHEEPDOG_DIR, taskName)
 
   try {
     loadTaskByName(projectRoot, taskName)

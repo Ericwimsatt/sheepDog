@@ -11,7 +11,7 @@ export const TaskYamlSchema = z.object({
   runBeforeAll: z.array(z.string()).optional().default([]),
   runAfterAll: z.array(z.string()).optional().default([]),
   schemas: z.array(z.string()).optional().default([]),
-  onPhaseFailure: z.enum(['stop', 'continue']).optional().default('stop'),
+  onPhaseFailure: z.enum(['stop', 'continue', 'attempt fix']).optional().default('stop'),
 })
 
 export type ParsedTaskYaml = z.infer<typeof TaskYamlSchema>

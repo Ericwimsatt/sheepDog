@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { loadTask, discoverTasks, phaseFilePath, contextFilePath, doneMarkerPath, activePhasePath } from '../task-loader.js'
 import { SheepDogError } from '../../utils/errors.js'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 let tmpDir: string
 
@@ -80,8 +81,8 @@ phases:
 
 describe('discoverTasks', () => {
   it('finds task directories', () => {
-    const task1 = join(tmpDir, 'sheepdog', 'task-a')
-    const task2 = join(tmpDir, 'sheepdog', 'task-b')
+    const task1 = join(tmpDir, SHEEPDOG_DIR, 'task-a')
+    const task2 = join(tmpDir, SHEEPDOG_DIR, 'task-b')
     writeTaskYaml(task1, validYaml)
     writeTaskYaml(task2, validYaml)
 

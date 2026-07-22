@@ -3,6 +3,7 @@ import { promisify } from 'node:util'
 import { resolve } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { info, success, step, error } from '../../utils/logger.js'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -18,7 +19,7 @@ export async function planCommand(description: string, options?: PlanOptions): P
     .replace(/^-|-$/g, '')
     .slice(0, 60)
 
-  const taskDir = resolve(projectRoot, 'sheepdog', name)
+  const taskDir = resolve(projectRoot, SHEEPDOG_DIR, name)
   mkdirSync(taskDir, { recursive: true })
 
   info(`Generating plan for: ${description}`)
@@ -55,7 +56,7 @@ runBeforeAll:
 runAfterAll:
   - npm run typecheck
   - npm test
-onPhaseFailure: stop
+onPhaseFailure: stop               # "stop", "continue", or "attempt fix"
 \`\`\`
 
 ## 2-5. ${taskDir}/todo-phase-1.md through todo-phase-4.md

@@ -20,10 +20,10 @@ npm install --save-dev sheepdog  # local install
 
 ### 2. Create the Task Directory
 
-Tasks live under `sheepdog/<task-name>/` in the repository root. Create the directory:
+Tasks live under `.sheepdog/<task-name>/` in the repository root. Create the directory:
 
 ```
-sheepdog/<task-name>/
+.sheepdog/<task-name>/
 ├── task.yaml            # Task definition (required)
 ├── todo-phase-1.md      # Phase 1 instructions (required)
 ├── todo-phase-2.md      # Phase 2 instructions (optional)
@@ -49,7 +49,7 @@ runBeforeAll:                      # Optional: commands before any phase starts
   - <command>
 runAfterAll:                       # Optional: commands after all phases complete
   - <command>
-onPhaseFailure: stop               # Optional: "stop" (default) or "continue"
+onPhaseFailure: stop               # Optional: "stop" (default), "continue", or "attempt fix"
 ```
 
 Example:
@@ -103,7 +103,7 @@ sheepdog run <task-name>
 - SheepDog opens opencode in a herdr pane for each phase
 - The agent reads the `todo-phase-N.md` and works through it
 - When done, type `/done` in the agent to signal phase completion
-- SheepDog runs any `runAfter` commands and either proceeds to the next phase or stops
+- SheepDog runs any \`runAfter\` commands and either proceeds to the next phase, stops on failure, or automatically retries fixing (controlled by \`onPhaseFailure\`)
 
 ## Best Practices
 
@@ -111,7 +111,8 @@ sheepdog run <task-name>
 - **Add test gates** — use `runAfter` to run relevant tests between phases to catch issues early
 - **Write detailed phase instructions** — the more context you give the agent, the better the outcome
 - **Use `runBeforeAll`** for setup (install, build, migrate) and `runAfterAll` for final verification
-- **Use `onPhaseFailure: continue`** when you want the agent to see and fix test failures in the next phase
+- **Use \`onPhaseFailure: continue\`** when you want the agent to see and fix test failures in the next phase
+- **Use \`onPhaseFailure: attempt fix\`** when you want the orchestrator to automatically retry fixing failed tests (up to 2 attempts) before aborting
 
 ## Vitest in `runAfter` / `runBeforeAll` / `runAfterAll`
 

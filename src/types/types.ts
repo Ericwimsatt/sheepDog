@@ -16,7 +16,7 @@ export interface Task {
   phases: Phase[]
   runBeforeAll: TestCommand[]
   runAfterAll: TestCommand[]
-  onPhaseFailure: 'stop' | 'continue'
+  onPhaseFailure: 'stop' | 'continue' | 'attempt fix'
 }
 
 export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed'

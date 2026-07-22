@@ -3,6 +3,7 @@ import { mkdtempSync, existsSync, readFileSync, rmSync, mkdirSync, writeFileSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { installCommand } from '../commands/install.js'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 let tmpDir: string
 
@@ -15,24 +16,24 @@ afterEach(() => {
 })
 
 describe('installCommand', () => {
-  it('creates sheepdog/ directory', async () => {
+  it(`creates ${SHEEPDOG_DIR}/ directory`, async () => {
     await installCommand({ dir: tmpDir })
 
-    expect(existsSync(join(tmpDir, 'sheepdog'))).toBe(true)
+    expect(existsSync(join(tmpDir, SHEEPDOG_DIR))).toBe(true)
   })
 
-  it('creates AGENTS.md inside sheepdog/', async () => {
+  it(`creates AGENTS.md inside ${SHEEPDOG_DIR}/`, async () => {
     await installCommand({ dir: tmpDir })
 
-    const agentsPath = join(tmpDir, 'sheepdog', 'AGENTS.md')
+    const agentsPath = join(tmpDir, SHEEPDOG_DIR, 'AGENTS.md')
     expect(existsSync(agentsPath)).toBe(true)
     const content = readFileSync(agentsPath, 'utf-8')
     expect(content).toContain('Creating a SheepDog Task')
     expect(content).toContain('task.yaml')
   })
 
-  it('does not overwrite existing sheepdog/AGENTS.md', async () => {
-    const sheepdogDir = join(tmpDir, 'sheepdog')
+  it(`does not overwrite existing ${SHEEPDOG_DIR}/AGENTS.md`, async () => {
+    const sheepdogDir = join(tmpDir, SHEEPDOG_DIR)
     mkdirSync(sheepdogDir, { recursive: true })
     writeFileSync(join(sheepdogDir, 'AGENTS.md'), 'custom content', 'utf-8')
 

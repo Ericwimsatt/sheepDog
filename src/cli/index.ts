@@ -7,6 +7,7 @@ import { resumeCommand } from './commands/resume.js'
 import { statusCommand } from './commands/status.js'
 import { listCommand } from './commands/list.js'
 import { planCommand } from './commands/plan.js'
+import { SHEEPDOG_DIR } from '../constants.js'
 
 export const program = new Command()
 
@@ -29,7 +30,7 @@ program
 
 program
   .command('install')
-  .description('Bootstrap sheepdog in a project (creates sheepdog/ dir + sheepdog/AGENTS.md)')
+  .description(`Bootstrap sheepdog in a project (creates ${SHEEPDOG_DIR}/ dir + ${SHEEPDOG_DIR}/AGENTS.md)`)
   .option('--dir <path>', 'Project directory', process.cwd())
   .action((options) => {
     installCommand(options).catch(err => {

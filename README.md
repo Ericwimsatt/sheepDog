@@ -27,7 +27,7 @@ node dist/cli/index.js --help
 ## Quick Start
 
 ```bash
-# Bootstrap sheepdog in a project (creates sheepdog/ dir + AGENTS.md)
+# Bootstrap sheepdog in a project (creates .sheepdog/ dir + AGENTS.md)
 sheepdog install
 
 # Scaffold a new task interactively
@@ -50,7 +50,7 @@ sheepdog plan "Add user authentication with JWT"
 
 | Command | Description |
 |---------|-------------|
-| `sheepdog install` | Bootstrap sheepdog in a project (creates `sheepdog/` + `AGENTS.md`) |
+| `sheepdog install` | Bootstrap sheepdog in a project (creates `.sheepdog/` + `AGENTS.md`) |
 | `sheepdog init` | Scaffold a new task definition |
 | `sheepdog list` | List all available tasks |
 | `sheepdog run <task>` | Execute a task |
@@ -59,17 +59,17 @@ sheepdog plan "Add user authentication with JWT"
 
 ## How It Works
 
-1. A **task** is defined in `sheepdog/<task-name>/task.yaml` with up to 10 phases
+1. A **task** is defined in `.sheepdog/<task-name>/task.yaml` with up to 10 phases
 2. Each phase has a corresponding `todo-phase-*.md` file with instructions for the agent
 3. `sheepdog run <task>` launches opencode in a new herdr pane for each phase
 4. The agent works through the phase — you type `/done` to signal completion
 5. SheepDog runs test commands between phases to verify work
-6. If tests fail, the output is either appended to the next phase or the run stops
+6. If tests fail, the run either stops, continues with output passed to the next phase, or automatically retries fixing (based on `onPhaseFailure`)
 7. Final verification tests run after all phases complete
 
 ## Task File Format
 
-Task definitions live in `sheepdog/<task-name>/task.yaml`:
+Task definitions live in `.sheepdog/<task-name>/task.yaml`:
 
 ```yaml
 name: my-task
@@ -84,7 +84,7 @@ runBeforeAll:
   - npm install
 runAfterAll:
   - npm run test
-onPhaseFailure: stop  # "stop" or "continue"
+onPhaseFailure: stop  # "stop", "continue", or "attempt fix"
 ```
 
 ## Development

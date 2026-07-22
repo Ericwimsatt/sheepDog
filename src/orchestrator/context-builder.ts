@@ -1,7 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
 import type { Phase, TestResult } from '../types/types.js'
-import { phaseFilePath, contextFilePath } from '../task/task-loader.js'
+import { phaseFilePath, contextFilePath, fixContextFilePath } from '../task/task-loader.js'
 
 export interface ContextBuilderOptions {
   taskDir: string
@@ -57,6 +56,70 @@ export function buildPhaseContext(options: ContextBuilderOptions): string {
 
   const content = lines.join('\n')
   const outputPath = contextFilePath(taskDir, phase.id)
+  writeFileSync(outputPath, content, 'utf-8')
+
+  return outputPath
+}
+
+export function buildFixContext(options: {
+  taskDir: string
+  phase: Phase
+  testResults: TestResult[]
+  attempt: number
+  maxAttempts: number
+}): string {
+  const { taskDir, phase, testResults, attempt, maxAttempts } = options
+
+  const failures = testResults.filter(r => !r.passed)
+
+  const lines: string[] = []
+
+  lines.push(`# Fix Attempt ${attempt}/${maxAttempts}: ${phase.label}`)
+  lines.push('')
+  lines.push('The following tests failed after completing the phase. Please fix the code to make these tests pass.')
+  lines.push('')
+  lines.push(`Attempt ${attempt} of ${maxAttempts}.`)
+
+  if (attempt > 1) {
+    lines.push('')
+    lines.push('**Previous fix attempt did not resolve the issue.** Please try a different approach.')
+  }
+
+  lines.push('')
+  lines.push('## Failing Tests')
+  lines.push('')
+
+  for (const failure of failures) {
+    lines.push(`### \`${failure.command}\` (exit code ${failure.exitCode})`)
+    lines.push('')
+    lines.push('```')
+    if (failure.stdout) {
+      lines.push(failure.stdout)
+    }
+    if (failure.stderr) {
+      lines.push(failure.stderr)
+    }
+    if (!failure.stdout && !failure.stderr) {
+      lines.push('(no output)')
+    }
+    lines.push('```')
+    lines.push('')
+  }
+
+  lines.push('## Instructions')
+  lines.push('')
+  lines.push('1. Fix the code to make all the above tests pass.')
+  lines.push(`2. After fixing, call the \`sheepdog_done\` tool to signal completion.`)
+  lines.push('3. Do NOT modify the test files unless the tests themselves are clearly incorrect.')
+  lines.push('')
+
+  if (attempt === maxAttempts) {
+    lines.push('> **This is the final attempt.** If tests still fail, the task will be aborted.')
+    lines.push('')
+  }
+
+  const content = lines.join('\n')
+  const outputPath = fixContextFilePath(taskDir, phase.id, attempt)
   writeFileSync(outputPath, content, 'utf-8')
 
   return outputPath

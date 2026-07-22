@@ -3,6 +3,7 @@ import { Orchestrator } from '../../orchestrator/index.js'
 import { loadTaskByName, discoverTasks } from '../../task/task-loader.js'
 import { info, error } from '../../utils/logger.js'
 import type { RunOptions } from '../../types/types.js'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 export interface RunCliOptions {
   phase?: string
@@ -25,7 +26,7 @@ export async function runCommand(taskName: string, options: RunCliOptions): Prom
     process.exit(1)
   }
 
-  const taskDir = resolve(projectRoot, 'sheepdog', taskName)
+  const taskDir = resolve(projectRoot, SHEEPDOG_DIR, taskName)
   const orchestrator = new Orchestrator()
 
   const runOpts: RunOptions = {}

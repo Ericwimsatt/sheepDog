@@ -5,8 +5,7 @@ import { TaskYamlSchema, type ParsedTaskYaml } from './task-schema.js'
 import { glob } from '../utils/fs.js'
 import { SheepDogError } from '../utils/errors.js'
 import type { Task, Phase, TestCommand } from '../types/types.js'
-
-const SHEEPDOG_DIR = 'sheepdog'
+import { SHEEPDOG_DIR } from '../constants.js'
 
 export interface LoadedTask {
   task: Task
@@ -81,6 +80,10 @@ export function phaseFilePath(taskDir: string, phase: Phase): string {
 
 export function contextFilePath(taskDir: string, phaseId: string): string {
   return join(taskDir, `.phase-context-${phaseId}.md`)
+}
+
+export function fixContextFilePath(taskDir: string, phaseId: string, attempt: number): string {
+  return join(taskDir, `.phase-fix-context-${phaseId}-attempt-${attempt}.md`)
 }
 
 export function doneMarkerPath(taskDir: string): string {

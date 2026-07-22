@@ -162,8 +162,55 @@ export class Orchestrator {
             return taskState
           }
 
-          warn(`Tests failed, but continuing. Failures will be passed to next phase.`)
-          previousTestResults = testResults
+          if (task.onPhaseFailure === 'attempt fix') {
+            const maxAttempts = 2
+            let fixed = false
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              info(`Fix attempt ${attempt}/${maxAttempts} for phase: ${phase.label}`)
+
+              await this.phaseRunner.runFixAttempt({
+                taskDir,
+                projectRoot,
+                herdr: this.herdr,
+                phase,
+                testResults: phaseState.testResults,
+                attempt,
+                maxAttempts,
+              })
+
+              info(`Re-running phase after-commands after fix attempt ${attempt}...`)
+              const retestResults = await this.testRunner.run(phase.runAfter)
+              phaseState.testResults = retestResults
+              writeCheckpoint(taskDir, taskState)
+
+              const retestFailures = retestResults.filter(
+                r => !r.passed && !phase.runAfter.find(tc => tc.command === r.command)?.optional
+              )
+
+              if (retestFailures.length === 0) {
+                success(`Fix attempt ${attempt} succeeded!`)
+                fixed = true
+                previousTestResults = undefined
+                break
+              }
+
+              if (attempt < maxAttempts) {
+                warn(`Fix attempt ${attempt} failed. Retrying...`)
+              }
+            }
+
+            if (!fixed) {
+              error(`Fix attempts exhausted (${maxAttempts}/${maxAttempts}). Aborting.`)
+              taskState.status = 'failed'
+              taskState.completedAt = new Date().toISOString()
+              writeCheckpoint(taskDir, taskState)
+              return taskState
+            }
+          } else {
+            warn(`Tests failed, but continuing. Failures will be passed to next phase.`)
+            previousTestResults = testResults
+          }
         } else {
           previousTestResults = undefined
         }

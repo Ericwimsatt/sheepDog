@@ -1,7 +1,6 @@
 import { writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
-
-const SHEEPDOG_DIR = 'sheepdog'
+import { SHEEPDOG_DIR } from '../constants.js'
 
 export function findActiveSheepDogTask(cwd: string): string | null {
   let dir = resolve(cwd)

@@ -48,6 +48,17 @@ describe('TaskYamlSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('allows "attempt fix" as onPhaseFailure', () => {
+    const result = TaskYamlSchema.safeParse({
+      ...minimalTask,
+      onPhaseFailure: 'attempt fix',
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.onPhaseFailure).toBe('attempt fix')
+    }
+  })
+
   it('applies default values correctly', () => {
     const result = TaskYamlSchema.safeParse(minimalTask)
     expect(result.success).toBe(true)

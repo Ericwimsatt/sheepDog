@@ -308,6 +308,89 @@ onPhaseFailure: stop
     expect(existsSync(checkpointPath(tmpDir))).toBe(false)
   })
 
+  it('retries fix and succeeds on first attempt with onPhaseFailure: attempt fix', async () => {
+    const yaml = `
+name: test-task
+phases:
+  - description: "Phase 1"
+    runAfter:
+      - echo "check"
+  - description: "Phase 2"
+onPhaseFailure: "attempt fix"
+`
+    writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+    writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1\n', 'utf-8')
+    writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2\n', 'utf-8')
+
+    const orchestrator = new Orchestrator()
+    scheduleDoneMarker()
+    mockHerdrReadOutput.mockResolvedValue('output')
+
+    let spawnCallCount = 0
+    mockSpawn.mockImplementation(() => {
+      spawnCallCount++
+      const cbs: Record<string, (...args: any[]) => void> = {}
+      const proc = {
+        on: vi.fn((event: string, cb: (...args: any[]) => void) => {
+          cbs[event] = cb
+          return proc
+        }),
+      }
+      setImmediate(() => {
+        if (cbs.exit) {
+          if (spawnCallCount === 1) cbs.exit(1)
+          else cbs.exit(0)
+        }
+      })
+      return proc
+    })
+
+    const result = await orchestrator.runTask(tmpDir)
+
+    expect(result.status).toBe('completed')
+    expect(result.phases).toHaveLength(2)
+    expect(mockHerdrStart).toHaveBeenCalledTimes(3)
+  })
+
+  it('fails after exhausting fix attempts with onPhaseFailure: attempt fix', async () => {
+    const yaml = `
+name: test-task
+phases:
+  - description: "Phase 1"
+    runAfter:
+      - echo "check"
+  - description: "Phase 2"
+onPhaseFailure: "attempt fix"
+`
+    writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+    writeFileSync(join(tmpDir, 'todo-phase-1.md'), 'Phase 1\n', 'utf-8')
+    writeFileSync(join(tmpDir, 'todo-phase-2.md'), 'Phase 2\n', 'utf-8')
+
+    const orchestrator = new Orchestrator()
+    scheduleDoneMarker()
+    mockHerdrReadOutput.mockResolvedValue('output')
+
+    mockSpawn.mockImplementation(() => {
+      const cbs: Record<string, (...args: any[]) => void> = {}
+      const proc = {
+        on: vi.fn((event: string, cb: (...args: any[]) => void) => {
+          cbs[event] = cb
+          return proc
+        }),
+      }
+      setImmediate(() => {
+        if (cbs.exit) cbs.exit(1)
+      })
+      return proc
+    })
+
+    const result = await orchestrator.runTask(tmpDir)
+
+    expect(result.status).toBe('failed')
+    expect(result.phases).toHaveLength(1)
+    expect(mockHerdrStart).toHaveBeenCalledTimes(3)
+  })
+
   it('preserves checkpoint on failure', async () => {
     const yaml = `
 name: test-task

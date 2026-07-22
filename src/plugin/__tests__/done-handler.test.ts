@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, rmSync, mkdtempSync, existsSync, readFileSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { isDoneCommand, findActiveSheepDogTask, writeDoneMarker } from '../done-handler.js'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 let tmpDir: string
 
@@ -40,7 +41,7 @@ describe('isDoneCommand', () => {
 
 describe('findActiveSheepDogTask', () => {
   it('finds task dir with .active-phase', () => {
-    const taskDir = join(tmpDir, 'sheepdog', 'my-task')
+    const taskDir = join(tmpDir, SHEEPDOG_DIR, 'my-task')
     mkdirSync(taskDir, { recursive: true })
     writeFileSync(join(taskDir, '.active-phase'), 'p1', 'utf-8')
 
@@ -51,7 +52,7 @@ describe('findActiveSheepDogTask', () => {
   it('walks up directories', () => {
     const deepDir = join(tmpDir, 'a', 'b', 'c')
     mkdirSync(deepDir, { recursive: true })
-    const taskDir = join(tmpDir, 'sheepdog', 'my-task')
+    const taskDir = join(tmpDir, SHEEPDOG_DIR, 'my-task')
     mkdirSync(taskDir, { recursive: true })
     writeFileSync(join(taskDir, '.active-phase'), 'p1', 'utf-8')
 
@@ -65,7 +66,7 @@ describe('findActiveSheepDogTask', () => {
   })
 
   it('returns null when sheepdog dir exists but no active task', () => {
-    const taskDir = join(tmpDir, 'sheepdog', 'inactive-task')
+    const taskDir = join(tmpDir, SHEEPDOG_DIR, 'inactive-task')
     mkdirSync(taskDir, { recursive: true })
 
     const result = findActiveSheepDogTask(tmpDir)
@@ -75,7 +76,7 @@ describe('findActiveSheepDogTask', () => {
 
 describe('writeDoneMarker', () => {
   it('creates .phase-done file', () => {
-    const taskDir = join(tmpDir, 'sheepdog', 'my-task')
+    const taskDir = join(tmpDir, SHEEPDOG_DIR, 'my-task')
     mkdirSync(taskDir, { recursive: true })
 
     writeDoneMarker(taskDir)

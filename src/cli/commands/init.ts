@@ -2,8 +2,7 @@ import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { info, success, step } from '../../utils/logger.js'
 import { SheepDogError } from '../../utils/errors.js'
-
-const SHEEPDOG_DIR = 'sheepdog'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 export interface InitOptions {
   dir: string
@@ -43,7 +42,7 @@ runBeforeAll:
 runAfterAll:
   - npm run typecheck
   - npm test
-onPhaseFailure: stop
+onPhaseFailure: stop  # "stop", "continue", or "attempt fix"
 `
 
   writeFileSync(join(taskDir, 'task.yaml'), taskYaml, 'utf-8')

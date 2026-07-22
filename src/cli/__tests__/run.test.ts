@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 const mockLoadTaskByName = vi.fn()
 const mockDiscoverTasks = vi.fn()
@@ -39,25 +40,25 @@ afterEach(() => {
 
 describe('runCommand', () => {
   it('calls Orchestrator.runTask with correct args', async () => {
-    mockLoadTaskByName.mockReturnValue({ task: { name: 'test-task' }, taskDir: join(tmpDir, 'sheepdog', 'test-task') })
+    mockLoadTaskByName.mockReturnValue({ task: { name: 'test-task' }, taskDir: join(tmpDir, SHEEPDOG_DIR, 'test-task') })
     mockRunTask.mockResolvedValue({ status: 'completed' })
 
     const { runCommand } = await import('../commands/run.js')
     await runCommand('test-task', { dir: tmpDir })
 
     expect(mockRunTask).toHaveBeenCalledTimes(1)
-    expect(mockRunTask).toHaveBeenCalledWith(join(tmpDir, 'sheepdog', 'test-task'), {})
+    expect(mockRunTask).toHaveBeenCalledWith(join(tmpDir, SHEEPDOG_DIR, 'test-task'), {})
   })
 
   it('passes phase and fromPhase options', async () => {
-    mockLoadTaskByName.mockReturnValue({ task: { name: 'test-task' }, taskDir: join(tmpDir, 'sheepdog', 'test-task') })
+    mockLoadTaskByName.mockReturnValue({ task: { name: 'test-task' }, taskDir: join(tmpDir, SHEEPDOG_DIR, 'test-task') })
     mockRunTask.mockResolvedValue({ status: 'completed' })
 
     const { runCommand } = await import('../commands/run.js')
     await runCommand('test-task', { dir: tmpDir, phase: 'p1', fromPhase: 'p2' })
 
     expect(mockRunTask).toHaveBeenCalledWith(
-      join(tmpDir, 'sheepdog', 'test-task'),
+      join(tmpDir, SHEEPDOG_DIR, 'test-task'),
       { phase: 'p1', fromPhase: 'p2' },
     )
   })
@@ -74,7 +75,7 @@ describe('runCommand', () => {
   })
 
   it('exits with code 1 when orchestrator returns failed status', async () => {
-    mockLoadTaskByName.mockReturnValue({ task: { name: 'test-task' }, taskDir: join(tmpDir, 'sheepdog', 'test-task') })
+    mockLoadTaskByName.mockReturnValue({ task: { name: 'test-task' }, taskDir: join(tmpDir, SHEEPDOG_DIR, 'test-task') })
     mockRunTask.mockResolvedValue({ status: 'failed' })
 
     const { runCommand } = await import('../commands/run.js')
@@ -84,7 +85,7 @@ describe('runCommand', () => {
   })
 
   it('exits with code 1 when orchestrator throws', async () => {
-    mockLoadTaskByName.mockReturnValue({ task: { name: 'test-task' }, taskDir: join(tmpDir, 'sheepdog', 'test-task') })
+    mockLoadTaskByName.mockReturnValue({ task: { name: 'test-task' }, taskDir: join(tmpDir, SHEEPDOG_DIR, 'test-task') })
     mockRunTask.mockRejectedValue(new Error('orchestrator error'))
 
     const { runCommand } = await import('../commands/run.js')

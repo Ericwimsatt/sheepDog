@@ -138,3 +138,110 @@ describe('PhaseRunner', () => {
     expect(content).toContain('prev-test')
   })
 })
+
+describe('PhaseRunner.runFixAttempt', () => {
+  it('writes fix context file', async () => {
+    const failures: TestResult[] = [
+      { command: 'npm test', exitCode: 1, stdout: '', stderr: 'fail', passed: false },
+    ]
+
+    mockHerdr.startAgent.mockImplementation(async () => {
+      setTimeout(() => {
+        writeFileSync(join(tmpDir, '.phase-done'), 'done', 'utf-8')
+      }, 50)
+      return { paneId: 'pane_fix', agentName: 'fix-agent', status: 'running' }
+    })
+
+    await runner.runFixAttempt({
+      taskDir: tmpDir,
+      projectRoot: '/tmp',
+      herdr: mockHerdr,
+      phase,
+      testResults: failures,
+      attempt: 1,
+      maxAttempts: 2,
+    })
+
+    const fixContextPath = join(tmpDir, '.phase-fix-context-p1-attempt-1.md')
+    expect(existsSync(fixContextPath)).toBe(true)
+    const content = readFileSync(fixContextPath, 'utf-8')
+    expect(content).toContain('Fix Attempt 1/2')
+    expect(content).toContain('npm test')
+  })
+
+  it('writes .active-phase marker with fix suffix', async () => {
+    const failures: TestResult[] = [
+      { command: 'npm test', exitCode: 1, stdout: '', stderr: '', passed: false },
+    ]
+
+    mockHerdr.startAgent.mockImplementation(async () => {
+      setTimeout(() => writeFileSync(join(tmpDir, '.phase-done'), 'done', 'utf-8'), 50)
+      return { paneId: 'pane_fix', agentName: 'fix-agent', status: 'running' }
+    })
+
+    await runner.runFixAttempt({
+      taskDir: tmpDir,
+      projectRoot: '/tmp',
+      herdr: mockHerdr,
+      phase,
+      testResults: failures,
+      attempt: 1,
+      maxAttempts: 2,
+    })
+
+    const activePath = join(tmpDir, '.active-phase')
+    const content = readFileSync(activePath, 'utf-8')
+    expect(content).toBe('p1-fix-1')
+  })
+
+  it('launches fix agent with correct arguments', async () => {
+    const failures: TestResult[] = [
+      { command: 'npm test', exitCode: 1, stdout: '', stderr: '', passed: false },
+    ]
+
+    mockHerdr.startAgent.mockImplementation(async () => {
+      setTimeout(() => writeFileSync(join(tmpDir, '.phase-done'), 'done', 'utf-8'), 50)
+      return { paneId: 'pane_fix', agentName: 'fix-agent', status: 'running' }
+    })
+
+    await runner.runFixAttempt({
+      taskDir: tmpDir,
+      projectRoot: '/project',
+      herdr: mockHerdr,
+      phase,
+      testResults: failures,
+      attempt: 1,
+      maxAttempts: 2,
+    })
+
+    expect(mockHerdr.startAgent).toHaveBeenCalledWith(
+      'Sheepdog fix (p1, attempt 1)',
+      '/project',
+      expect.arrayContaining(['opencode', '--auto']),
+      { split: 'right' },
+    )
+  })
+
+  it('cleans up .phase-done marker after completion', async () => {
+    const failures: TestResult[] = [
+      { command: 'npm test', exitCode: 1, stdout: '', stderr: '', passed: false },
+    ]
+
+    mockHerdr.startAgent.mockImplementation(async () => {
+      setTimeout(() => writeFileSync(join(tmpDir, '.phase-done'), 'done', 'utf-8'), 50)
+      return { paneId: 'pane_fix', agentName: 'fix-agent', status: 'running' }
+    })
+
+    await runner.runFixAttempt({
+      taskDir: tmpDir,
+      projectRoot: '/tmp',
+      herdr: mockHerdr,
+      phase,
+      testResults: failures,
+      attempt: 1,
+      maxAttempts: 2,
+    })
+
+    expect(existsSync(join(tmpDir, '.phase-done'))).toBe(false)
+  })
+})

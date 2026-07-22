@@ -2,13 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { SHEEPDOG_DIR } from '../../constants.js'
 
 // We use dynamic imports in tests to avoid hoisting issues
 describe('statusCommand', () => {
   let tmpDir: string
 
   function writeTask(name: string, phaseCount: number = 4): string {
-    const taskDir = join(tmpDir, 'sheepdog', name)
+    const taskDir = join(tmpDir, SHEEPDOG_DIR, name)
     mkdirSync(taskDir, { recursive: true })
 
     let yaml = `name: "${name}"\nphases:\n`

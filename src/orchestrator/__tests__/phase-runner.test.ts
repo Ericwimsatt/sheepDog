@@ -115,9 +115,9 @@ describe('PhaseRunner', () => {
     await runner.run({ taskDir: tmpDir, projectRoot: '/project', herdr: mockHerdr, phase })
 
     expect(mockHerdr.startAgent).toHaveBeenCalledWith(
-      'p1',
+      'Sheepdog (p1)',
       '/project',
-      ['opencode'],
+      ['opencode', '--prompt', expect.stringContaining('Phase "Phase 1" has started'), '--auto'],
       { split: 'right' },
     )
   })

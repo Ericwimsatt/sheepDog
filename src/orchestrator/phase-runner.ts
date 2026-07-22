@@ -30,7 +30,7 @@ export class PhaseRunner {
     }
 
     info(`Launching phase: ${phase.label}`)
-    const agentName = `${phase.id}`
+    const agentName = `Sheepdog (${phase.id})`
     const contextPath = contextFilePath(taskDir, phase.id)
     const agentInfo = await herdr.startAgent(agentName, projectRoot, [
       'opencode',

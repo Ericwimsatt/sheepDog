@@ -112,3 +112,7 @@ sheepdog run <task-name>
 - **Write detailed phase instructions** — the more context you give the agent, the better the outcome
 - **Use `runBeforeAll`** for setup (install, build, migrate) and `runAfterAll` for final verification
 - **Use `onPhaseFailure: continue`** when you want the agent to see and fix test failures in the next phase
+
+## Vitest in `runAfter` / `runBeforeAll` / `runAfterAll`
+
+Always use `npx vitest run` (not `npx vitest`) in commands. Bare `vitest` defaults to **watch mode**, which never exits and stalls the task. The orchestrator auto-inserts `run` if you use bare `vitest`, but you should not rely on this — write `vitest run` explicitly.

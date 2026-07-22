@@ -19,6 +19,23 @@ export class HerdrSessionManager {
       focus?: boolean
     },
   ): Promise<AgentInfo> {
+    return this.startAgentWithRetry(name, 1, cwd, argv, options)
+  }
+
+  private async startAgentWithRetry(
+    baseName: string,
+    attempt: number,
+    cwd: string,
+    argv: string[],
+    options?: {
+      tab?: string
+      workspace?: string
+      split?: 'right' | 'down'
+      env?: Record<string, string>
+      focus?: boolean
+    },
+  ): Promise<AgentInfo> {
+    const name = attempt === 1 ? baseName : `${baseName}(${attempt})`
     const args = ['agent', 'start', name, '--cwd', cwd]
 
     if (options?.tab) args.push('--tab', options.tab)
@@ -33,14 +50,16 @@ export class HerdrSessionManager {
 
     args.push('--', ...argv)
 
-    const { stdout, stderr } = await execFileAsync(HERDR_BIN, args)
-
-    const paneId = extractPaneId(stdout, stderr)
-
-    return {
-      paneId,
-      agentName: name,
-      status: 'running',
+    try {
+      const { stdout, stderr } = await execFileAsync(HERDR_BIN, args)
+      const paneId = extractPaneId(stdout, stderr)
+      return { paneId, agentName: name, status: 'running' }
+    } catch (err: any) {
+      const errorText = (err.stderr || '') + (err.message || '')
+      if (isNameTaken(errorText) && attempt < 10) {
+        return this.startAgentWithRetry(baseName, attempt + 1, cwd, argv, options)
+      }
+      throw err
     }
   }
 
@@ -121,6 +140,10 @@ function parseAgentList(output: string): AgentInfo[] {
     }
   }
   return agents
+}
+
+function isNameTaken(text: string): boolean {
+  return text.includes('agent_name_taken') || text.includes('name is already used')
 }
 
 function parseAgentInfo(output: string): AgentInfo | null {

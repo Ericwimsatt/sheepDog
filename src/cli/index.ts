@@ -3,6 +3,7 @@ import { Command } from 'commander'
 import { initCommand } from './commands/init.js'
 import { installCommand } from './commands/install.js'
 import { runCommand } from './commands/run.js'
+import { resumeCommand } from './commands/resume.js'
 import { statusCommand } from './commands/status.js'
 import { listCommand } from './commands/list.js'
 import { planCommand } from './commands/plan.js'
@@ -68,6 +69,17 @@ program
   .option('--dir <path>', 'Project directory', process.cwd())
   .action((options) => {
     listCommand(options).catch(err => {
+      console.error(err.message)
+      process.exit(1)
+    })
+  })
+
+program
+  .command('resume <task>')
+  .description('Resume a previously interrupted task from its last checkpoint')
+  .option('--dir <path>', 'Project directory', process.cwd())
+  .action((task, options) => {
+    resumeCommand(task, options).catch(err => {
       console.error(err.message)
       process.exit(1)
     })

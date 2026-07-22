@@ -1,11 +1,11 @@
 import { unlinkSync } from 'node:fs'
 import { HerdrSessionManager } from '../session/herdr-session.js'
 import { loadTask, activePhasePath, doneMarkerPath } from '../task/task-loader.js'
-import type { LoadedTask } from '../task/task-loader.js'
 import { PhaseRunner } from './phase-runner.js'
 import { TestRunner } from './test-runner.js'
 import type { RunOptions } from '../types/types.js'
-import type { PhaseState, TaskState, TestResult } from '../types/types.js'
+import type { TaskState, TestResult } from '../types/types.js'
+import { writeCheckpoint, loadCheckpoint, clearCheckpoint } from '../checkpoint/checkpoint.js'
 import { info, success, warn, error } from '../utils/logger.js'
 
 export class Orchestrator {
@@ -23,32 +23,98 @@ export class Orchestrator {
     const loaded = loadTask(taskDir)
     const { task, projectRoot } = loaded
 
-    info(`Starting task: ${task.name}`)
+    let taskState: TaskState
+    let previousTestResults: TestResult[] | undefined
 
-    const taskState: TaskState = {
-      taskName: task.name,
-      status: 'running',
-      phases: [],
-      currentPhaseIndex: 0,
-      startedAt: new Date().toISOString(),
-    }
+    if (options?.fromPhase || options?.phase) {
+      info(`Starting task: ${task.name}`)
 
-    if (task.runBeforeAll && task.runBeforeAll.length > 0) {
-      info('Running before-all commands...')
-      const beforeResults = await this.testRunner.run(task.runBeforeAll)
-      const failures = beforeResults.filter(r => !r.passed)
-      if (failures.length > 0) {
-        error('runBeforeAll commands failed. Aborting.')
-        taskState.status = 'failed'
-        taskState.completedAt = new Date().toISOString()
-        return taskState
+      taskState = {
+        taskName: task.name,
+        status: 'running',
+        phases: [],
+        currentPhaseIndex: 0,
+        startedAt: new Date().toISOString(),
       }
-      success('All before-all commands passed')
+
+      if (task.runBeforeAll && task.runBeforeAll.length > 0) {
+        info('Running before-all commands...')
+        const beforeResults = await this.testRunner.run(task.runBeforeAll)
+        const failures = beforeResults.filter(r => !r.passed)
+        if (failures.length > 0) {
+          error('runBeforeAll commands failed. Aborting.')
+          taskState.status = 'failed'
+          taskState.completedAt = new Date().toISOString()
+          writeCheckpoint(taskDir, taskState)
+          return taskState
+        }
+        success('All before-all commands passed')
+      }
+    } else {
+      const cp = loadCheckpoint(taskDir)
+      if (cp && (cp.status === 'failed' || cp.status === 'running')) {
+        info(`Resuming task: ${task.name} from previous checkpoint (status: ${cp.status})`)
+        const lastFailed = [...cp.phases].reverse().find(p =>
+          p.testResults.some(r => !r.passed)
+        )
+        const resumePhaseId = lastFailed?.phaseId ?? cp.phases[cp.phases.length - 1]?.phaseId
+        if (resumePhaseId) {
+          const resumeIdx = cp.phases.findIndex(p => p.phaseId === resumePhaseId)
+          const completedPhases = cp.phases.slice(0, resumeIdx)
+          previousTestResults = cp.phases[resumeIdx]?.testResults?.filter(r => !r.passed).length
+            ? cp.phases[resumeIdx].testResults
+            : undefined
+          if (previousTestResults) {
+            info(`Previous failures detected in ${resumePhaseId}, passing as context`)
+          }
+          taskState = {
+            taskName: cp.taskName,
+            status: 'running',
+            phases: completedPhases,
+            currentPhaseIndex: completedPhases.length,
+            startedAt: cp.startedAt ?? new Date().toISOString(),
+          }
+        } else {
+          taskState = {
+            taskName: cp.taskName,
+            status: 'running',
+            phases: [],
+            currentPhaseIndex: 0,
+            startedAt: cp.startedAt ?? new Date().toISOString(),
+          }
+        }
+      } else {
+        info(`Starting task: ${task.name}`)
+
+        taskState = {
+          taskName: task.name,
+          status: 'running',
+          phases: [],
+          currentPhaseIndex: 0,
+          startedAt: new Date().toISOString(),
+        }
+
+        if (task.runBeforeAll && task.runBeforeAll.length > 0) {
+          info('Running before-all commands...')
+          const beforeResults = await this.testRunner.run(task.runBeforeAll)
+          const failures = beforeResults.filter(r => !r.passed)
+          if (failures.length > 0) {
+            error('runBeforeAll commands failed. Aborting.')
+            taskState.status = 'failed'
+            taskState.completedAt = new Date().toISOString()
+            writeCheckpoint(taskDir, taskState)
+            return taskState
+          }
+          success('All before-all commands passed')
+        }
+      }
     }
 
     const startIndex = options?.fromPhase
       ? task.phases.findIndex(p => p.id === options.fromPhase)
-      : 0
+      : options?.phase
+        ? task.phases.findIndex(p => p.id === options.phase)
+        : taskState.phases.length
 
     const runPhases = options?.phase
       ? task.phases.filter(p => p.id === options.phase)
@@ -57,10 +123,9 @@ export class Orchestrator {
     if (runPhases.length === 0) {
       error('No phases to run')
       taskState.status = 'failed'
+      writeCheckpoint(taskDir, taskState)
       return taskState
     }
-
-    let previousTestResults: TestResult[] | undefined
 
     for (const phase of runPhases) {
       info(`\u2500\u2500 Phase: ${phase.label} \u2500\u2500`)
@@ -74,12 +139,15 @@ export class Orchestrator {
       })
 
       taskState.phases.push(phaseState)
+      taskState.currentPhaseIndex = taskState.phases.length
+      writeCheckpoint(taskDir, taskState)
       success(`Phase complete: ${phase.label}`)
 
       if (phase.runAfter && phase.runAfter.length > 0) {
         info('Running phase after-commands...')
         const testResults = await this.testRunner.run(phase.runAfter)
         phaseState.testResults = testResults
+        writeCheckpoint(taskDir, taskState)
 
         const hardFailures = testResults.filter(
           r => !r.passed && !phase.runAfter.find(tc => tc.command === r.command)?.optional
@@ -90,6 +158,7 @@ export class Orchestrator {
             error('Tests failed and onPhaseFailure is set to stop. Aborting.')
             taskState.status = 'failed'
             taskState.completedAt = new Date().toISOString()
+            writeCheckpoint(taskDir, taskState)
             return taskState
           }
 
@@ -112,6 +181,7 @@ export class Orchestrator {
       }
     }
 
+    clearCheckpoint(taskDir)
     this.cleanup(taskDir)
 
     taskState.status = 'completed'

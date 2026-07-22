@@ -1,90 +1,84 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TestRunner } from '../test-runner.js'
-import type { TestCommand } from '../../types/types.js'
 
-type ExecFileCallback = (...args: any[]) => void
+const mockSpawn = vi.hoisted(() => vi.fn())
+let onErrorCb: ((...args: any[]) => void) | undefined
+let onExitCb: ((...args: any[]) => void) | undefined
 
-const mockExecImpl = vi.fn()
 vi.mock('node:child_process', () => ({
-  execFile: (...args: any[]) => {
-    const cb = args[args.length - 1] as ExecFileCallback
-    try {
-      const result = mockExecImpl(args[0], args[1])
-      if (result && typeof (result as any).then === 'function') {
-        (result as Promise<any>).then(
-          (res: any) => cb(null, res),
-          (err: Error) => cb(err),
-        )
-      } else {
-        cb(null, result ?? { stdout: '', stderr: '' })
-      }
-    } catch (err) {
-      cb(err)
-    }
-  },
+  spawn: mockSpawn,
 }))
 
 let runner: TestRunner
 
 beforeEach(() => {
   vi.clearAllMocks()
+  onErrorCb = undefined
+  onExitCb = undefined
+  mockSpawn.mockImplementation(() => ({
+    on: vi.fn((event: string, cb: (...args: any[]) => void) => {
+      if (event === 'error') onErrorCb = cb
+      if (event === 'exit') onExitCb = cb
+    }),
+  }))
   runner = new TestRunner({ cwd: '/tmp' })
 })
 
 describe('TestRunner', () => {
   it('runs a successful command and returns passed: true', async () => {
-    mockExecImpl.mockReturnValue({ stdout: 'hello world\n', stderr: '' })
+    const promise = runner.run([{ command: 'echo hello', optional: false, failOnError: false }])
 
-    const results = await runner.run([{ command: 'echo hello', optional: false, failOnError: false }])
+    onExitCb!(0)
+
+    const results = await promise
 
     expect(results).toHaveLength(1)
     expect(results[0].passed).toBe(true)
     expect(results[0].exitCode).toBe(0)
-    expect(results[0].stdout).toBe('hello world')
+    expect(results[0].stdout).toBe('')
     expect(results[0].command).toBe('echo hello')
   })
 
   it('runs a failing command and returns passed: false', async () => {
-    mockExecImpl.mockImplementation(() => {
-      const err = new Error('command failed') as any
-      err.code = 1
-      err.stderr = 'error output'
-      throw err
-    })
+    const promise = runner.run([{ command: 'false', optional: false, failOnError: false }])
 
-    const results = await runner.run([{ command: 'false', optional: false, failOnError: false }])
+    onErrorCb!(Object.assign(new Error('command failed'), { code: 1 }))
+
+    const results = await promise
 
     expect(results).toHaveLength(1)
     expect(results[0].passed).toBe(false)
     expect(results[0].exitCode).toBe(1)
-    expect(results[0].stderr).toBe('error output')
+    expect(results[0].stderr).toBe('command failed')
   })
 
   it('stops on failOnError commands', async () => {
-    mockExecImpl.mockImplementation(() => {
-      const err = new Error('failed') as any
-      err.code = 1
-      throw err
-    })
-
-    const results = await runner.run([
+    const promise = runner.run([
       { command: 'failing-cmd', optional: false, failOnError: true },
       { command: 'echo should-not-run', optional: false, failOnError: false },
     ])
+
+    onErrorCb!(new Error('failed'))
+
+    const results = await promise
 
     expect(results).toHaveLength(1)
   })
 
   it('continues on optional failures', async () => {
-    let callCount = 0
-    mockExecImpl.mockImplementation(() => {
-      callCount++
-      if (callCount === 1) {
-        const err = new Error('optional failed') as any
-        err.code = 1
-        throw err
+    let spawnCount = 0
+    mockSpawn.mockImplementation(() => {
+      spawnCount++
+      return {
+        on: vi.fn((event: string, cb: (...args: any[]) => void) => {
+          if (spawnCount === 1 && event === 'error') {
+            cb(new Error('optional failed'))
+          }
+          if (spawnCount === 2 && event === 'exit') {
+            cb(0)
+          }
+        }),
       }
-      return { stdout: 'ok', stderr: '' }
     })
 
     const results = await runner.run([
@@ -98,15 +92,17 @@ describe('TestRunner', () => {
   })
 
   it('returns TestResult with correct stdout/stderr/exitCode', async () => {
-    mockExecImpl.mockReturnValue({ stdout: 'out\n', stderr: 'err\n' })
+    const promise = runner.run([{ command: 'some-tool', optional: false, failOnError: false }])
 
-    const results = await runner.run([{ command: 'some-tool', optional: false, failOnError: false }])
+    onExitCb!(0)
+
+    const results = await promise
 
     expect(results[0]).toEqual({
       command: 'some-tool',
       exitCode: 0,
-      stdout: 'out',
-      stderr: 'err',
+      stdout: '',
+      stderr: '',
       passed: true,
     })
   })

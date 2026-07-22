@@ -37,6 +37,15 @@ export class TestRunner {
 
   private async executeCommand(command: string): Promise<TestResult> {
     const parts = command.split(/\s+/)
+
+    const vitestIdx = parts.findIndex(p => p === 'vitest')
+    if (vitestIdx !== -1 && parts[vitestIdx + 1] !== 'run') {
+      parts.splice(vitestIdx + 1, 0, 'run')
+      const fixed = parts.join(' ')
+      warn(`'${command}' would run vitest in watch mode. Using '${fixed}' instead.`)
+      command = fixed
+    }
+
     const cmd = parts[0]
     const args = parts.slice(1)
 

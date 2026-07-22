@@ -1,0 +1,6 @@
+name: test-sheepdog
+phases:
+  - description: "Phase 1"
+  - description: "Phase 2"
+  - description: "Phase 3"
+  - description: "Phase 4"

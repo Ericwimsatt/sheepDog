@@ -28,7 +28,7 @@ describe('installCommand', () => {
     const agentsPath = join(tmpDir, SHEEPDOG_DIR, 'AGENTS.md')
     expect(existsSync(agentsPath)).toBe(true)
     const content = readFileSync(agentsPath, 'utf-8')
-    expect(content).toContain('Creating a SheepDog Task')
+    expect(content).toContain('SheepDog is a multi-phase task orchestrator')
     expect(content).toContain('task.yaml')
   })
 
@@ -40,6 +40,27 @@ describe('installCommand', () => {
     await installCommand({ dir: tmpDir })
 
     const content = readFileSync(join(sheepdogDir, 'AGENTS.md'), 'utf-8')
+    expect(content).toBe('custom content')
+  })
+
+  it('copies skill files into .sheepdog/skills/', async () => {
+    await installCommand({ dir: tmpDir })
+
+    const skillsDir = join(tmpDir, SHEEPDOG_DIR, 'skills')
+    expect(existsSync(skillsDir)).toBe(true)
+    expect(existsSync(join(skillsDir, 'install.md'))).toBe(true)
+    expect(existsSync(join(skillsDir, 'create-task.md'))).toBe(true)
+    expect(existsSync(join(skillsDir, 'handle-failure.md'))).toBe(true)
+  })
+
+  it('does not overwrite existing skill files', async () => {
+    const skillsDir = join(tmpDir, SHEEPDOG_DIR, 'skills')
+    mkdirSync(skillsDir, { recursive: true })
+    writeFileSync(join(skillsDir, 'install.md'), 'custom content', 'utf-8')
+
+    await installCommand({ dir: tmpDir })
+
+    const content = readFileSync(join(skillsDir, 'install.md'), 'utf-8')
     expect(content).toBe('custom content')
   })
 

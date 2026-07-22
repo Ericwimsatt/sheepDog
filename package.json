@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Multi-phase agent task orchestrator for herdr + opencode",
   "type": "module",
+  "files": ["dist", "skills"],
   "bin": {
     "sheepdog": "./dist/cli/index.js"
   },

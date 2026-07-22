@@ -91,6 +91,14 @@ export class HerdrSessionManager {
     return stdout
   }
 
+  async agentSendKeys(target: string, keys: string[]): Promise<void> {
+    await execFileAsync(HERDR_BIN, ['agent', 'send-keys', target, ...keys])
+  }
+
+  async agentPrompt(target: string, text: string): Promise<void> {
+    await execFileAsync(HERDR_BIN, ['agent', 'prompt', target, text])
+  }
+
   async closePane(paneId: string): Promise<void> {
     await execFileAsync(HERDR_BIN, ['pane', 'close', paneId])
   }

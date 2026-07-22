@@ -66,7 +66,16 @@ describe('TaskYamlSchema', () => {
       expect(result.data.runBeforeAll).toEqual([])
       expect(result.data.runAfterAll).toEqual([])
       expect(result.data.onPhaseFailure).toBe('stop')
+      expect(result.data.nudgeInterval).toBe(180)
       expect(result.data.phases[0].runAfter).toEqual([])
+    }
+  })
+
+  it('parses nudgeInterval correctly', () => {
+    const result = TaskYamlSchema.safeParse({ ...minimalTask, nudgeInterval: 180 })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.nudgeInterval).toBe(180)
     }
   })
 })

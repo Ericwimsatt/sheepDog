@@ -33,6 +33,7 @@ function resolveTask(yaml: ParsedTaskYaml): Task {
     runBeforeAll: toTestCommands(yaml.runBeforeAll ?? []),
     runAfterAll: toTestCommands(yaml.runAfterAll ?? []),
     onPhaseFailure: yaml.onPhaseFailure ?? 'stop',
+    nudgeInterval: yaml.nudgeInterval,
   }
 }
 

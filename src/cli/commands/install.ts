@@ -55,7 +55,7 @@ runBeforeAll:                      # Optional: commands before any phase starts
   - <command>
 runAfterAll:                       # Optional: commands after all phases complete
   - <command>
-onPhaseFailure: stop               # Optional: "stop" (default), "continue", or "attempt fix"
+onPhaseFailure: stop               # Optional: "attempt fix" (default), "continue", or "stop"
 \`\`\`
 
 Example:

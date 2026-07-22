@@ -17,6 +17,7 @@ export interface Task {
   runBeforeAll: TestCommand[]
   runAfterAll: TestCommand[]
   onPhaseFailure: 'stop' | 'continue' | 'attempt fix'
+  nudgeInterval: number
 }
 
 export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed'

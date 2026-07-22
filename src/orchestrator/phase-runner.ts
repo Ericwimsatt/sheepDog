@@ -1,9 +1,10 @@
-import { writeFileSync, unlinkSync, existsSync } from 'node:fs'
+import { writeFileSync, unlinkSync, existsSync, readFileSync } from 'node:fs'
 import { HerdrSessionManager } from '../session/herdr-session.js'
 import { buildPhaseContext, buildFixContext } from './context-builder.js'
 import { doneMarkerPath, activePhasePath, contextFilePath, fixContextFilePath } from '../task/task-loader.js'
 import type { Phase, TestResult, PhaseState } from '../types/types.js'
 import { info, success, warn, step } from '../utils/logger.js'
+import { debugLog } from '../utils/debug.js'
 
 export interface PhaseRunnerOptions {
   taskDir: string
@@ -11,6 +12,7 @@ export interface PhaseRunnerOptions {
   herdr: HerdrSessionManager
   phase: Phase
   previousTestResults?: TestResult[]
+  nudgeInterval?: number
 }
 
 export class PhaseRunner {
@@ -41,8 +43,23 @@ export class PhaseRunner {
     })
     success(`Phase started in pane: ${agentInfo.paneId}`)
 
+    const nudgeIntervalMs = (options.nudgeInterval ?? 0) * 1000
+    let nudgeTimer: NodeJS.Timeout | undefined
+    if (nudgeIntervalMs > 0) {
+      debugLog(`Starting nudge timer every ${nudgeIntervalMs}ms for pane ${agentInfo.paneId}`, taskDir)
+      nudgeTimer = setInterval(() => {
+        herdr.agentSendKeys(agentInfo.paneId, ['esc', 'esc'])
+          .then(() => sleep(500))
+          .then(() => herdr.agentPrompt(agentInfo.paneId, 'continue'))
+          .catch((err) => debugLog(`Nudge failed: ${err}`, taskDir))
+      }, nudgeIntervalMs)
+    }
+
     step('Waiting for /done marker...')
+    debugLog('waitForDoneMarker: starting poll for .phase-done in ' + doneMarkerPath(taskDir), taskDir)
     await this.waitForDoneMarker(taskDir)
+
+    if (nudgeTimer) clearInterval(nudgeTimer)
 
     step('Reading phase output...')
     let output = ''
@@ -79,6 +96,7 @@ export class PhaseRunner {
     testResults: TestResult[]
     attempt: number
     maxAttempts: number
+    nudgeInterval?: number
   }): Promise<void> {
     const { taskDir, projectRoot, herdr, phase, testResults, attempt, maxAttempts } = options
 
@@ -104,8 +122,22 @@ export class PhaseRunner {
     })
     success(`Fix agent started in pane: ${agentInfo.paneId}`)
 
+    const nudgeIntervalMs = (options.nudgeInterval ?? 0) * 1000
+    let nudgeTimer: NodeJS.Timeout | undefined
+    if (nudgeIntervalMs > 0) {
+      debugLog(`Starting nudge timer every ${nudgeIntervalMs}ms for fix pane ${agentInfo.paneId}`, taskDir)
+      nudgeTimer = setInterval(() => {
+        herdr.agentSendKeys(agentInfo.paneId, ['esc', 'esc'])
+          .then(() => sleep(500))
+          .then(() => herdr.agentPrompt(agentInfo.paneId, 'continue'))
+          .catch((err) => debugLog(`Nudge failed: ${err}`, taskDir))
+      }, nudgeIntervalMs)
+    }
+
     step('Waiting for fix agent to complete...')
     await this.waitForDoneMarker(taskDir)
+
+    if (nudgeTimer) clearInterval(nudgeTimer)
 
     step('Reading fix agent output...')
     let output = ''
@@ -127,14 +159,24 @@ export class PhaseRunner {
   async waitForDoneMarker(taskDir: string, pollMs: number = 500, timeoutMs: number = 0): Promise<void> {
     const donePath = doneMarkerPath(taskDir)
     const startTime = Date.now()
+    let pollCount = 0
 
     while (true) {
+      pollCount++
       if (existsSync(donePath)) {
+        const content = readFileContent(donePath)
+        debugLog(`waitForDoneMarker: found .phase-done marker after ${pollCount} polls (elapsed: ${Date.now() - startTime}ms, content: ${content})`, taskDir)
         unlinkSync(donePath)
+        debugLog('waitForDoneMarker: marker consumed, proceeding', taskDir)
         return
       }
 
+      if (pollCount % 20 === 0) {
+        debugLog(`waitForDoneMarker: still waiting after ${pollCount} polls (${Date.now() - startTime}ms)`, taskDir)
+      }
+
       if (timeoutMs > 0 && Date.now() - startTime > timeoutMs) {
+        debugLog(`waitForDoneMarker: timeout after ${timeoutMs}ms`, taskDir)
         throw new Error(`Timed out waiting for /done marker after ${timeoutMs}ms`)
       }
 
@@ -145,4 +187,12 @@ export class PhaseRunner {
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function readFileContent(path: string): string {
+  try {
+    return readFileSync(path, 'utf-8').trim()
+  } catch {
+    return '(unreadable)'
+  }
 }

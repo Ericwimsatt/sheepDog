@@ -18,6 +18,8 @@ beforeEach(() => {
     closePane: vi.fn().mockResolvedValue(undefined),
     listAgents: vi.fn().mockResolvedValue([]),
     getAgent: vi.fn().mockResolvedValue(null),
+    agentSendKeys: vi.fn().mockResolvedValue(undefined),
+    agentPrompt: vi.fn().mockResolvedValue(undefined),
   }
   runner = new PhaseRunner()
 })
@@ -120,6 +122,16 @@ describe('PhaseRunner', () => {
       ['opencode', '--prompt', expect.stringContaining('Phase "Phase 1" has started'), '--auto'],
       { split: 'right' },
     )
+  })
+
+  it('does not start nudge timer when nudgeInterval is 0', async () => {
+    writeTodoFile()
+    scheduleDoneMarker()
+
+    await runner.run({ taskDir: tmpDir, projectRoot: '/tmp', herdr: mockHerdr, phase, nudgeInterval: 0 })
+
+    expect(mockHerdr.agentSendKeys).not.toHaveBeenCalled()
+    expect(mockHerdr.agentPrompt).not.toHaveBeenCalled()
   })
 
   it('appends previous failures to context', async () => {

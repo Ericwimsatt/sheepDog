@@ -45,11 +45,12 @@ phases:                            # Required: list of 1-10 phases
       - <command>
 schemas:                           # Optional: JSON schema keys for validation
   - <schema-ref>
+nudgeInterval: 180                 # Optional: seconds between "continue" nudges (0 or omit to disable)
 runBeforeAll:                      # Optional: commands before any phase starts
   - <command>
 runAfterAll:                       # Optional: commands after all phases complete
   - <command>
-onPhaseFailure: stop               # Optional: "stop" (default), "continue", or "attempt fix"
+onPhaseFailure: attempt fix               # Optional: "attempt fix" (default), "continue", or "stop
 ```
 
 Example:

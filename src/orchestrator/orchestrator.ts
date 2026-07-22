@@ -136,6 +136,7 @@ export class Orchestrator {
         herdr: this.herdr,
         phase,
         previousTestResults,
+        nudgeInterval: task.nudgeInterval,
       })
 
       taskState.phases.push(phaseState)
@@ -177,6 +178,7 @@ export class Orchestrator {
                 testResults: phaseState.testResults,
                 attempt,
                 maxAttempts,
+                nudgeInterval: task.nudgeInterval,
               })
 
               info(`Re-running phase after-commands after fix attempt ${attempt}...`)

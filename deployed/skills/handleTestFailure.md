@@ -1,0 +1,1 @@
+When test fails, give agent instructions to fix it, consider the possibility the verification script is incorrect and may need to be changed in some cases

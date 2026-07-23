@@ -37,10 +37,21 @@ function resolveTask(yaml: ParsedTaskYaml): Task {
   }
 }
 
+export function hasMainScript(taskDir: string): boolean {
+  return existsSync(join(taskDir, 'main.ts'))
+}
+
 export function discoverTasks(projectRoot: string): string[] {
-  const pattern = join(SHEEPDOG_DIR, '*', 'task.yaml')
-  const files = glob(pattern, projectRoot)
-  return files.map(f => dirname(f))
+  const yamlPattern = join(SHEEPDOG_DIR, '*', 'task.yaml')
+  const yamlFiles = glob(yamlPattern, projectRoot)
+  const yamlDirs = yamlFiles.map(f => dirname(f))
+
+  const mainPattern = join(SHEEPDOG_DIR, '*', 'main.ts')
+  const mainFiles = glob(mainPattern, projectRoot)
+  const mainDirs = mainFiles.map(f => dirname(f))
+
+  const all = [...new Set([...yamlDirs, ...mainDirs])]
+  return all.sort()
 }
 
 export function loadTask(taskDir: string): LoadedTask {

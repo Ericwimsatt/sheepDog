@@ -28,19 +28,37 @@ describe('installCommand', () => {
     const agentsPath = join(tmpDir, SHEEPDOG_DIR, 'AGENTS.md')
     expect(existsSync(agentsPath)).toBe(true)
     const content = readFileSync(agentsPath, 'utf-8')
-    expect(content).toContain('Creating a SheepDog Task')
+    expect(content).toContain('SheepDog is a multi-phase task orchestrator')
     expect(content).toContain('task.yaml')
+    expect(content).toContain('Vitest')
   })
 
-  it(`does not overwrite existing ${SHEEPDOG_DIR}/AGENTS.md`, async () => {
+  it(`copies sandbox.d.ts into ${SHEEPDOG_DIR}/`, async () => {
+    await installCommand({ dir: tmpDir })
+
+    const sandboxPath = join(tmpDir, SHEEPDOG_DIR, 'sandbox.d.ts')
+    expect(existsSync(sandboxPath)).toBe(true)
+    const content = readFileSync(sandboxPath, 'utf-8')
+    expect(content).toContain('@sheepdog/sandbox')
+  })
+
+  it(`copies tasks/ directory into ${SHEEPDOG_DIR}/`, async () => {
+    await installCommand({ dir: tmpDir })
+
+    const tasksDir = join(tmpDir, SHEEPDOG_DIR, 'tasks')
+    expect(existsSync(tasksDir)).toBe(true)
+  })
+
+  it(`does not overwrite existing files in ${SHEEPDOG_DIR}/`, async () => {
     const sheepdogDir = join(tmpDir, SHEEPDOG_DIR)
     mkdirSync(sheepdogDir, { recursive: true })
     writeFileSync(join(sheepdogDir, 'AGENTS.md'), 'custom content', 'utf-8')
+    writeFileSync(join(sheepdogDir, 'sandbox.d.ts'), 'custom types', 'utf-8')
 
     await installCommand({ dir: tmpDir })
 
-    const content = readFileSync(join(sheepdogDir, 'AGENTS.md'), 'utf-8')
-    expect(content).toBe('custom content')
+    expect(readFileSync(join(sheepdogDir, 'AGENTS.md'), 'utf-8')).toBe('custom content')
+    expect(readFileSync(join(sheepdogDir, 'sandbox.d.ts'), 'utf-8')).toBe('custom types')
   })
 
   it('errors on non-existent directory', async () => {

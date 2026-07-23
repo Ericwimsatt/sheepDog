@@ -42,7 +42,7 @@ runBeforeAll:
 runAfterAll:
   - npm run typecheck
   - npm test
-onPhaseFailure: stop  # "stop", "continue", or "attempt fix"
+onPhaseFailure: attempt fix  # "stop", "continue", or "attempt fix"
 `
 
   writeFileSync(join(taskDir, 'task.yaml'), taskYaml, 'utf-8')

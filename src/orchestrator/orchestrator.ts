@@ -1,11 +1,14 @@
 import { unlinkSync } from 'node:fs'
+import { basename, resolve } from 'node:path'
 import { HerdrSessionManager } from '../session/herdr-session.js'
-import { loadTask, activePhasePath, doneMarkerPath } from '../task/task-loader.js'
+import { loadTask, hasMainScript, activePhasePath, doneMarkerPath } from '../task/task-loader.js'
 import { PhaseRunner } from './phase-runner.js'
 import { TestRunner } from './test-runner.js'
-import type { RunOptions } from '../types/types.js'
-import type { TaskState, TestResult } from '../types/types.js'
+import { runScript } from '../sandbox/runner.js'
+import type { SandboxEvent } from '../sandbox/runner.js'
+import type { RunOptions, TaskState, TestResult, TestCommand } from '../types/types.js'
 import { writeCheckpoint, loadCheckpoint, clearCheckpoint } from '../checkpoint/checkpoint.js'
+import { loadScriptCheckpoint, clearScriptCheckpoint } from '../sandbox/checkpoint.js'
 import { info, success, warn, error } from '../utils/logger.js'
 
 export class Orchestrator {
@@ -20,6 +23,95 @@ export class Orchestrator {
   }
 
   async runTask(taskDir: string, options?: RunOptions): Promise<TaskState> {
+    if (hasMainScript(taskDir)) {
+      return this.runScriptTask(taskDir, options)
+    }
+    return this.runYamlTask(taskDir, options)
+  }
+
+  private async runScriptTask(taskDir: string, options?: RunOptions): Promise<TaskState> {
+    const projectRoot = resolve(taskDir, '..', '..')
+
+    let taskName: string
+    let runBeforeAll: TestCommand[] = []
+    let runAfterAll: TestCommand[] = []
+
+    try {
+      const loaded = loadTask(taskDir)
+      taskName = loaded.task.name
+      runBeforeAll = loaded.task.runBeforeAll
+      runAfterAll = loaded.task.runAfterAll
+    } catch {
+      taskName = basename(taskDir)
+    }
+
+    const checkpoint = loadScriptCheckpoint(taskDir)
+
+    const taskState: TaskState = {
+      taskName,
+      status: 'running',
+      phases: [],
+      currentPhaseIndex: 0,
+      startedAt: checkpoint.startedAt ?? new Date().toISOString(),
+    }
+
+    if (runBeforeAll.length > 0) {
+      info('Running before-all commands...')
+      const beforeResults = await this.testRunner.run(runBeforeAll)
+      const failures = beforeResults.filter(r => !r.passed)
+      if (failures.length > 0) {
+        error('runBeforeAll commands failed. Aborting.')
+        taskState.status = 'failed'
+        taskState.completedAt = new Date().toISOString()
+        return taskState
+      }
+      success('All before-all commands passed')
+    }
+
+    info(`Starting script task: ${taskName}`)
+
+    try {
+      await runScript(taskDir, projectRoot, {
+        onEvent: (event: SandboxEvent) => {
+          if (event.type === 'phase-start') {
+            info(`Script phase: ${event.phaseName}`)
+          } else if (event.type === 'phase-complete') {
+            if (event.success) {
+              success(`Script phase complete: ${event.phaseName}`)
+            } else {
+              warn(`Script phase failed: ${event.phaseName}`)
+            }
+          }
+        },
+      })
+    } catch (err) {
+      error(`Script task failed: ${err}`)
+      taskState.status = 'failed'
+      taskState.completedAt = new Date().toISOString()
+      return taskState
+    }
+
+    if (runAfterAll.length > 0) {
+      info('Running after-all tests...')
+      const finalResults = await this.testRunner.run(runAfterAll)
+      const failures = finalResults.filter(r => !r.passed)
+      if (failures.length > 0) {
+        warn(`${failures.length} after-all test(s) failed`)
+      } else {
+        success('All after-all tests passed')
+      }
+    }
+
+    clearScriptCheckpoint(taskDir)
+    this.cleanup(taskDir)
+
+    taskState.status = 'completed'
+    taskState.completedAt = new Date().toISOString()
+    success(`Task complete: ${taskName}`)
+    return taskState
+  }
+
+  private async runYamlTask(taskDir: string, options?: RunOptions): Promise<TaskState> {
     const loaded = loadTask(taskDir)
     const { task, projectRoot } = loaded
 

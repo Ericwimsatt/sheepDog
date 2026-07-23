@@ -7,6 +7,8 @@ import { resumeCommand } from './commands/resume.js'
 import { statusCommand } from './commands/status.js'
 import { listCommand } from './commands/list.js'
 import { planCommand } from './commands/plan.js'
+import { migrateCommand } from './commands/migrate.js'
+import { createSkillCommand } from './commands/skill.js'
 import { SHEEPDOG_DIR } from '../constants.js'
 
 export const program = new Command()
@@ -96,6 +98,20 @@ program
       process.exit(1)
     })
   })
+
+program
+  .command('migrate <task>')
+  .description('Convert a YAML-based task to the script format')
+  .option('--dir <path>', 'Project root directory', process.cwd())
+  .option('--force', 'Overwrite existing main.ts', false)
+  .action((task, options) => {
+    migrateCommand({ task, dir: options.dir, force: options.force }).catch(err => {
+      console.error(err.message)
+      process.exit(1)
+    })
+  })
+
+program.addCommand(createSkillCommand())
 
 if (!process.env.VITEST) {
   program.parse(process.argv)

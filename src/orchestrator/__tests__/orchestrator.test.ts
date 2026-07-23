@@ -27,6 +27,25 @@ vi.mock('../../session/herdr-session.js', () => ({
   })),
 }))
 
+const mockRunScript = vi.hoisted(() => vi.fn())
+const mockLoadScriptCheckpoint = vi.hoisted(() => vi.fn())
+const mockClearScriptCheckpoint = vi.hoisted(() => vi.fn())
+
+vi.mock('../../sandbox/runner.js', () => ({
+  runScript: mockRunScript,
+}))
+
+vi.mock('../../sandbox/checkpoint.js', () => ({
+  loadScriptCheckpoint: mockLoadScriptCheckpoint,
+  clearScriptCheckpoint: mockClearScriptCheckpoint,
+  checkpointPath: vi.fn(),
+  computeCallId: vi.fn(),
+  hasCompletedCall: vi.fn(),
+  recordCompletedCall: vi.fn(),
+  saveScriptCheckpoint: vi.fn(),
+  recordSkippedCall: vi.fn(),
+}))
+
 let tmpDir: string
 
 beforeEach(() => {
@@ -47,6 +66,9 @@ beforeEach(() => {
     })
     return proc
   })
+  mockLoadScriptCheckpoint.mockReturnValue({ taskName: '', completedCalls: [] })
+  mockRunScript.mockResolvedValue({ taskName: '', completedCalls: [], completedAt: new Date().toISOString() })
+  mockClearScriptCheckpoint.mockImplementation(() => {})
 })
 
 afterEach(() => {
@@ -482,5 +504,85 @@ onPhaseFailure: stop
 
     const cp2 = loadCheckpoint(tmpDir)
     expect(cp2).toBeNull()
+  })
+
+  describe('script tasks', () => {
+    it('runs script tasks when main.ts exists', async () => {
+      writeFileSync(join(tmpDir, 'main.ts'), 'export default async function main() {}', 'utf-8')
+      writeFileSync(join(tmpDir, 'task.yaml'), 'name: script-task\nphases:\n  - description: "Phase 1"\n', 'utf-8')
+
+      const orchestrator = new Orchestrator()
+      const result = await orchestrator.runTask(tmpDir)
+
+      expect(result.status).toBe('completed')
+      expect(result.taskName).toBe('script-task')
+      expect(mockRunScript).toHaveBeenCalledWith(tmpDir, expect.any(String), expect.objectContaining({
+        onEvent: expect.any(Function),
+      }))
+    })
+
+    it('uses task name from dir when no task.yaml present', async () => {
+      writeFileSync(join(tmpDir, 'main.ts'), 'export default async function main() {}', 'utf-8')
+
+      const orchestrator = new Orchestrator()
+      const result = await orchestrator.runTask(tmpDir)
+
+      expect(result.status).toBe('completed')
+      expect(result.taskName).toBe(tmpDir.split('/').pop())
+    })
+
+    it('runs before-all commands for script tasks', async () => {
+      writeFileSync(join(tmpDir, 'main.ts'), 'export default async function main() {}', 'utf-8')
+      const yaml = `
+name: script-task
+phases:
+  - description: "Phase 1"
+runBeforeAll:
+  - echo "setup"
+`
+      writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+
+      const orchestrator = new Orchestrator()
+      const result = await orchestrator.runTask(tmpDir)
+
+      expect(result.status).toBe('completed')
+      expect(mockSpawn).toHaveBeenCalled()
+    })
+
+    it('runs after-all tests for script tasks', async () => {
+      writeFileSync(join(tmpDir, 'main.ts'), 'export default async function main() {}', 'utf-8')
+      const yaml = `
+name: script-task
+phases:
+  - description: "Phase 1"
+runAfterAll:
+  - echo "final"
+`
+      writeFileSync(join(tmpDir, 'task.yaml'), yaml, 'utf-8')
+
+      const orchestrator = new Orchestrator()
+      const result = await orchestrator.runTask(tmpDir)
+
+      expect(result.status).toBe('completed')
+    })
+
+    it('fails when runScript throws', async () => {
+      writeFileSync(join(tmpDir, 'main.ts'), 'export default async function main() {}', 'utf-8')
+      mockRunScript.mockRejectedValue(new Error('script error'))
+
+      const orchestrator = new Orchestrator()
+      const result = await orchestrator.runTask(tmpDir)
+
+      expect(result.status).toBe('failed')
+    })
+
+    it('clears script checkpoint on success', async () => {
+      writeFileSync(join(tmpDir, 'main.ts'), 'export default async function main() {}', 'utf-8')
+
+      const orchestrator = new Orchestrator()
+      await orchestrator.runTask(tmpDir)
+
+      expect(mockClearScriptCheckpoint).toHaveBeenCalledWith(tmpDir)
+    })
   })
 })
